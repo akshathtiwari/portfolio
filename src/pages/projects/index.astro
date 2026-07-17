@@ -1,0 +1,49 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+
+const allProjects = (await getCollection("projects")).sort(
+  (a, b) => a.data.order - b.data.order
+);
+
+const themes = [...new Set(allProjects.map((p) => p.data.theme))];
+---
+
+<Layout title="Projects — Akshath Tiwari">
+  <section class="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+    <h1 class="text-3xl font-bold tracking-tight text-neutral-50">Projects</h1>
+    <p class="mt-3 max-w-2xl text-neutral-400">
+      A selection of LLM fine-tuning, agent, and evaluation systems — from production
+      services to first-principles foundations.
+    </p>
+
+    {themes.map((theme) => {
+      const items = allProjects.filter((p) => p.data.theme === theme);
+      return (
+        <div class="mt-12">
+          <h2 class="font-mono text-xs uppercase tracking-widest text-emerald-400/80">{theme}</h2>
+          <div class="mt-4 grid gap-5 sm:grid-cols-2">
+            {items.map((project) => (
+              <a
+                href={`/projects/${project.id}`}
+                class="group rounded-lg border border-white/10 bg-white/[0.02] p-5 transition hover:border-emerald-400/40 hover:bg-white/[0.04]"
+              >
+                <h3 class="text-sm font-semibold text-neutral-100 group-hover:text-emerald-300">
+                  {project.data.title}
+                </h3>
+                <p class="mt-2 text-sm leading-relaxed text-neutral-500">{project.data.summary}</p>
+                <div class="mt-4 flex flex-wrap gap-1.5">
+                  {project.data.techStack.slice(0, 4).map((tech) => (
+                    <span class="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-neutral-400">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </section>
+</Layout>

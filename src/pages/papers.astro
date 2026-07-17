@@ -1,0 +1,50 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import { site } from "../lib/site";
+
+const papers = (await getCollection("papers")).sort((a, b) => a.data.order - b.data.order);
+---
+
+<Layout title="Papers & Talks — Akshath Tiwari" description="Research paper notes and YouTube walkthroughs.">
+  <section class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+    <h1 class="text-3xl font-bold tracking-tight text-neutral-50">Papers &amp; Talks</h1>
+    <p class="mt-3 text-neutral-400">
+      Notes on research papers I've studied, plus video walkthroughs on my
+      <a href={site.youtube} target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300">
+        YouTube channel
+      </a>.
+    </p>
+
+    {papers.length === 0 && (
+      <div class="mt-12 rounded-lg border border-dashed border-white/15 p-8 text-center">
+        <p class="text-sm text-neutral-500">
+          No paper write-ups yet. Add entries to <code class="text-neutral-400">src/content/papers/</code> —
+          each one can link out to the paper and a matching YouTube video.
+        </p>
+      </div>
+    )}
+
+    <div class="mt-10 space-y-6">
+      {papers.map((paper) => (
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
+          <h2 class="text-base font-semibold text-neutral-100">{paper.data.title}</h2>
+          {paper.data.authors && <p class="mt-1 text-xs text-neutral-500">{paper.data.authors}</p>}
+          <p class="mt-2 text-sm leading-relaxed text-neutral-400">{paper.data.summary}</p>
+          <div class="mt-3 flex gap-4 text-sm">
+            {paper.data.paperUrl && (
+              <a href={paper.data.paperUrl} target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300">
+                Read paper &rarr;
+              </a>
+            )}
+            {paper.data.videoUrl && (
+              <a href={paper.data.videoUrl} target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300">
+                Watch on YouTube &rarr;
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</Layout>

@@ -1,0 +1,91 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const experience = [
+  {
+    company: "Phenom",
+    role: "Product Development Engineer II - Machine Learning",
+    period: "February 2026 - Present",
+    location: "Hyderabad",
+    description: "Harness engineering, reinforcement learning, and SLM fine-tuning.",
+  },
+  {
+    company: "Phenom",
+    role: "Product Development Engineer I - Machine Learning",
+    period: "August 2025 - February 2026",
+    location: "Hyderabad",
+    description:
+      "Fine-tuning LLMs, building intelligent agents, evaluating SOTA architectures, exploring compact models for reasoning, and applying learning from human feedback.",
+  },
+  {
+    company: "Deloitte",
+    role: "Software Developer",
+    period: "October 2023 - July 2025",
+    location: "Hyderabad, Telangana, India",
+    description:
+      "Software Developer on Deloitte Australia's product development team, specializing in AI and backend technologies. Built backend logic for analytical and AI workloads in Python and Golang, and maintained backend microservices and databases.",
+  },
+  {
+    company: "Deloitte",
+    role: "Intern",
+    period: "August 2023 - September 2023",
+    location: "Gurugram, Haryana, India",
+    description: "Contributed to the customer and GTM strategy team, analyzing data using statistics and data modeling techniques.",
+  },
+  {
+    company: "Tata Advanced Systems Limited",
+    role: "Intern",
+    period: "January 2023 - June 2023",
+    location: "Hyderabad, Telangana, India",
+    description: "Part of a Plant Digitalization team, using analytics and machine learning to address bottleneck operations and enhance predictive maintenance.",
+  },
+  {
+    company: "Boeing",
+    role: "Intern",
+    period: "June 2022 - July 2022",
+    location: "Hyderabad, Telangana, India",
+    description:
+      "Worked with Bill of Material, Statement of Work, Purchase Orders, Contract Change Orders, and Engineering Data for the Boeing CH-47 Chinook Helicopter; assisted with BA work for the Boeing 737 Fan Cowl industrialization project.",
+  },
+  {
+    company: "Sikorsky",
+    role: "Apprentice",
+    period: "January 2022",
+    location: "Hyderabad, Telangana, India",
+    description: "Gained hands-on experience with CAD/CAM software (CATIA, NX Siemens, MasterCAM, Vericut) used in digital manufacturing of aerospace structures.",
+  },
+];
+
+const education = [
+  { school: "Manipal University Jaipur", degree: "Bachelor of Technology (BTech)", period: "July 2019 - July 2023" },
+];
+---
+
+<Layout title="Experience — Akshath Tiwari">
+  <section class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+    <h1 class="text-3xl font-bold tracking-tight text-neutral-50">Experience</h1>
+
+    <ol class="mt-10 space-y-10 border-l border-white/10 pl-8">
+      {experience.map((job) => (
+        <li class="relative">
+          <span class="absolute -left-[2.28rem] top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+          <p class="font-mono text-xs text-neutral-500">{job.period} · {job.location}</p>
+          <h3 class="mt-1 text-base font-semibold text-neutral-100">{job.role}</h3>
+          <p class="text-sm text-emerald-400/90">{job.company}</p>
+          <p class="mt-2 text-sm leading-relaxed text-neutral-400">{job.description}</p>
+        </li>
+      ))}
+    </ol>
+
+    <h2 class="mt-16 text-2xl font-bold tracking-tight text-neutral-50">Education</h2>
+    <div class="mt-6 space-y-4">
+      {education.map((edu) => (
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
+          <p class="font-mono text-xs text-neutral-500">{edu.period}</p>
+          <h3 class="mt-1 text-base font-semibold text-neutral-100">{edu.school}</h3>
+          <p class="text-sm text-neutral-400">{edu.degree}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+</Layout>

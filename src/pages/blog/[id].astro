@@ -1,0 +1,37 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog", ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { id: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const formatDate = (d: Date) =>
+  d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<Layout title={`${post.data.title} — Akshath Tiwari`} description={post.data.description}>
+  <article class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+    <a href="/blog" class="text-sm text-emerald-400 hover:text-emerald-300">&larr; All posts</a>
+
+    <p class="mt-6 font-mono text-xs text-neutral-500">{formatDate(post.data.date)}</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-neutral-50">{post.data.title}</h1>
+
+    <div class="mt-3 flex flex-wrap gap-1.5">
+      {post.data.tags.map((tag) => (
+        <span class="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-neutral-500">{tag}</span>
+      ))}
+    </div>
+
+    <div class="prose prose-invert prose-neutral mt-10 max-w-none prose-headings:font-semibold prose-a:text-emerald-400">
+      <Content />
+    </div>
+  </article>
+</Layout>
