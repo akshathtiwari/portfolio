@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Class-based dark mode: `dark:` utilities respond to a `.dark` class on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ---- Scroll reveal ---- */
 [data-reveal] {
   opacity: 0;

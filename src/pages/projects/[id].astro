@@ -16,45 +16,45 @@ const { Content } = await render(project);
 
 <Layout title={`${project.data.title} — Akshath Tiwari`} description={project.data.summary}>
   <article class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
-    <a href="/projects" class="text-sm text-emerald-400 hover:text-emerald-300">&larr; All projects</a>
+    <a href="/projects" class="text-sm text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300">&larr; All projects</a>
 
-    <p class="mt-6 font-mono text-xs uppercase tracking-widest text-emerald-400/80">
+    <p class="mt-6 font-mono text-xs uppercase tracking-widest text-emerald-600/80 dark:text-emerald-400/80">
       {project.data.theme}
     </p>
-    <h1 class="mt-2 text-3xl font-bold tracking-tight text-neutral-50">{project.data.title}</h1>
-    <p class="mt-4 text-lg leading-relaxed text-neutral-400">{project.data.summary}</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{project.data.title}</h1>
+    <p class="mt-4 text-lg leading-relaxed text-neutral-600 dark:text-neutral-400">{project.data.summary}</p>
 
     <div class="mt-6 flex flex-wrap gap-2">
       {project.data.techStack.map((tech) => (
-        <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-300">{tech}</span>
+        <span class="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-700 dark:border-white/10 dark:text-neutral-300">{tech}</span>
       ))}
     </div>
 
     {project.data.links && (
       <div class="mt-6 flex flex-wrap gap-4 text-sm">
         {project.data.links.github && (
-          <a href={project.data.links.github} class="text-emerald-400 hover:text-emerald-300">Code &rarr;</a>
+          <a href={project.data.links.github} class="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300">Code &rarr;</a>
         )}
         {project.data.links.demo && (
-          <a href={project.data.links.demo} class="text-emerald-400 hover:text-emerald-300">Demo &rarr;</a>
+          <a href={project.data.links.demo} class="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300">Demo &rarr;</a>
         )}
         {project.data.links.writeup && (
-          <a href={project.data.links.writeup} class="text-emerald-400 hover:text-emerald-300">Write-up &rarr;</a>
+          <a href={project.data.links.writeup} class="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300">Write-up &rarr;</a>
         )}
       </div>
     )}
 
-    <div class="prose prose-invert prose-neutral mt-10 max-w-none prose-headings:font-semibold prose-a:text-emerald-400">
+    <div class="prose prose-neutral mt-10 max-w-none dark:prose-invert prose-headings:font-semibold prose-a:text-emerald-600 dark:prose-a:text-emerald-400">
       <Content />
     </div>
 
     {project.data.achievements && project.data.achievements.length > 0 && (
-      <div class="mt-10 rounded-lg border border-white/10 bg-white/[0.02] p-6">
+      <div class="mt-10 rounded-lg border border-neutral-200 bg-neutral-50 p-6 dark:border-white/10 dark:bg-white/[0.02]">
         <h2 class="font-mono text-xs uppercase tracking-widest text-neutral-500">Key Results</h2>
         <ul class="mt-4 space-y-2">
           {project.data.achievements.map((item) => (
-            <li class="flex gap-2 text-sm leading-relaxed text-neutral-300">
-              <span class="text-emerald-400">&rarr;</span>
+            <li class="flex gap-2 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+              <span class="text-emerald-600 dark:text-emerald-400">&rarr;</span>
               <span>{item}</span>
             </li>
           ))}

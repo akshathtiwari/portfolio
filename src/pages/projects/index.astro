@@ -13,8 +13,8 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 
 <Layout title="Projects — Akshath Tiwari">
   <section class="mx-auto max-w-5xl px-6 py-16 sm:py-20">
-    <h1 data-reveal class="text-3xl font-bold tracking-tight text-neutral-50">Projects</h1>
-    <p data-reveal style="--reveal-delay:80ms" class="mt-3 max-w-2xl text-neutral-400">
+    <h1 data-reveal class="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Projects</h1>
+    <p data-reveal style="--reveal-delay:80ms" class="mt-3 max-w-2xl text-neutral-600 dark:text-neutral-400">
       A selection of LLM fine-tuning, agent, and evaluation systems, from production
       services to first-principles foundations.
     </p>
@@ -25,8 +25,8 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
           type="button"
           class={`filter-btn rounded-full border px-4 py-1.5 text-xs font-medium transition ${
             i === 0
-              ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-300"
-              : "border-white/10 text-neutral-400 hover:border-white/30 hover:text-neutral-200"
+              ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/60 dark:bg-emerald-400/10 dark:text-emerald-300"
+              : "border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:text-neutral-900 dark:border-white/10 dark:text-neutral-400 dark:hover:border-white/30 dark:hover:text-neutral-200"
           }`}
           data-filter={theme === "All" ? "all" : slug(theme)}
           aria-pressed={i === 0 ? "true" : "false"}
@@ -44,19 +44,19 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
       {allProjects.map((project, i) => (
         <a
           href={`/projects/${project.id}`}
-          class="project-card glow-card group rounded-lg border border-white/10 bg-white/[0.02] p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-400/40"
+          class="project-card glow-card group rounded-lg border border-neutral-200 bg-neutral-50 p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-500/40 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-emerald-400/40"
           data-theme={slug(project.data.theme)}
           data-reveal
           style={`--reveal-delay:${(i % 4) * 80}ms`}
         >
-          <p class="font-mono text-[11px] uppercase tracking-wide text-emerald-400/70">{project.data.theme}</p>
-          <h3 class="mt-2 text-sm font-semibold text-neutral-100 group-hover:text-emerald-300">
+          <p class="font-mono text-[11px] uppercase tracking-wide text-emerald-600/70 dark:text-emerald-400/70">{project.data.theme}</p>
+          <h3 class="mt-2 text-sm font-semibold text-neutral-900 group-hover:text-emerald-600 dark:text-neutral-100 dark:group-hover:text-emerald-300">
             {project.data.title}
           </h3>
-          <p class="mt-2 text-sm leading-relaxed text-neutral-500">{project.data.summary}</p>
+          <p class="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-500">{project.data.summary}</p>
           <div class="mt-4 flex flex-wrap gap-1.5">
             {project.data.techStack.slice(0, 4).map((tech) => (
-              <span class="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-neutral-400">
+              <span class="rounded-full border border-neutral-200 px-2.5 py-0.5 text-[11px] text-neutral-600 dark:border-white/10 dark:text-neutral-400">
                 {tech}
               </span>
             ))}
@@ -79,8 +79,14 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
     const empty = document.getElementById("empty-state");
     if (!buttons.length) return;
 
-    const activeClasses = ["border-emerald-400/60", "bg-emerald-400/10", "text-emerald-300"];
-    const idleClasses = ["border-white/10", "text-neutral-400"];
+    const activeClasses = [
+      "border-emerald-500/60", "bg-emerald-500/10", "text-emerald-700",
+      "dark:border-emerald-400/60", "dark:bg-emerald-400/10", "dark:text-emerald-300",
+    ];
+    const idleClasses = [
+      "border-neutral-200", "text-neutral-600", "hover:border-neutral-300", "hover:text-neutral-900",
+      "dark:border-white/10", "dark:text-neutral-400", "dark:hover:border-white/30", "dark:hover:text-neutral-200",
+    ];
 
     const apply = (filter: string) => {
       let visible = 0;

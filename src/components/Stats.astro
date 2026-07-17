@@ -13,10 +13,10 @@ const stats = [
       <div
         data-reveal
         style={`--reveal-delay:${i * 90}ms`}
-        class="glow-card rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center"
+        class="glow-card rounded-xl border border-neutral-200 bg-neutral-50 p-5 text-center dark:border-white/10 dark:bg-white/[0.02]"
       >
         <p
-          class="stat-num text-3xl font-bold tracking-tight text-emerald-400 sm:text-4xl"
+          class="stat-num text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 sm:text-4xl"
           data-target={stat.value}
           data-decimals={stat.decimals}
           data-prefix={stat.prefix ?? ""}
@@ -24,7 +24,7 @@ const stats = [
         >
           {stat.prefix ?? ""}0{stat.suffix ?? ""}
         </p>
-        <p class="mt-2 text-xs leading-relaxed text-neutral-400">{stat.label}</p>
+        <p class="mt-2 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">{stat.label}</p>
       </div>
     ))}
   </div>
