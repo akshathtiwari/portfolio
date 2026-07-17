@@ -1,0 +1,59 @@
+---
+// Global scroll-reveal + card-glow behavior. Include once per page (in Layout).
+// Uses rect-based visibility (robust across browsers/preview harnesses) with an
+// IntersectionObserver fast-path when available.
+---
+<script>
+  const setup = () => {
+    const revealEls = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
+
+    const show = (el: HTMLElement) => el.classList.add("is-visible");
+    const inView = (el: HTMLElement, margin = 80) => {
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      return r.top < vh - margin && r.bottom > 0;
+    };
+
+    const checkAll = () => {
+      let remaining = false;
+      revealEls.forEach((el) => {
+        if (el.classList.contains("is-visible")) return;
+        if (inView(el)) show(el);
+        else remaining = true;
+      });
+      return remaining;
+    };
+
+    if (revealEls.length) {
+      // Initial pass (covers already-visible content on load/nav)
+      checkAll();
+      let ticking = false;
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          const remaining = checkAll();
+          ticking = false;
+          if (!remaining) {
+            window.removeEventListener("scroll", onScroll);
+            window.removeEventListener("resize", onScroll);
+          }
+        });
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll, { passive: true });
+    }
+
+    // Cursor-follow glow on cards
+    document.querySelectorAll<HTMLElement>(".glow-card").forEach((card) => {
+      card.addEventListener("pointermove", (e) => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty("--mx", `${e.clientX - rect.left}px`);
+        card.style.setProperty("--my", `${e.clientY - rect.top}px`);
+      });
+    });
+  };
+
+  setup();
+  document.addEventListener("astro:page-load", setup);
+</script>

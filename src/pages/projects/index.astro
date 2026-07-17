@@ -6,44 +6,113 @@ const allProjects = (await getCollection("projects")).sort(
   (a, b) => a.data.order - b.data.order
 );
 
-const themes = [...new Set(allProjects.map((p) => p.data.theme))];
+const themes = ["All", ...new Set(allProjects.map((p) => p.data.theme))];
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 ---
 
 <Layout title="Projects — Akshath Tiwari">
   <section class="mx-auto max-w-5xl px-6 py-16 sm:py-20">
-    <h1 class="text-3xl font-bold tracking-tight text-neutral-50">Projects</h1>
-    <p class="mt-3 max-w-2xl text-neutral-400">
-      A selection of LLM fine-tuning, agent, and evaluation systems — from production
+    <h1 data-reveal class="text-3xl font-bold tracking-tight text-neutral-50">Projects</h1>
+    <p data-reveal style="--reveal-delay:80ms" class="mt-3 max-w-2xl text-neutral-400">
+      A selection of LLM fine-tuning, agent, and evaluation systems, from production
       services to first-principles foundations.
     </p>
 
-    {themes.map((theme) => {
-      const items = allProjects.filter((p) => p.data.theme === theme);
-      return (
-        <div class="mt-12">
-          <h2 class="font-mono text-xs uppercase tracking-widest text-emerald-400/80">{theme}</h2>
-          <div class="mt-4 grid gap-5 sm:grid-cols-2">
-            {items.map((project) => (
-              <a
-                href={`/projects/${project.id}`}
-                class="group rounded-lg border border-white/10 bg-white/[0.02] p-5 transition hover:border-emerald-400/40 hover:bg-white/[0.04]"
-              >
-                <h3 class="text-sm font-semibold text-neutral-100 group-hover:text-emerald-300">
-                  {project.data.title}
-                </h3>
-                <p class="mt-2 text-sm leading-relaxed text-neutral-500">{project.data.summary}</p>
-                <div class="mt-4 flex flex-wrap gap-1.5">
-                  {project.data.techStack.slice(0, 4).map((tech) => (
-                    <span class="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-neutral-400">
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </a>
+    <div data-reveal style="--reveal-delay:160ms" class="mt-8 flex flex-wrap gap-2" id="filter-bar">
+      {themes.map((theme, i) => (
+        <button
+          type="button"
+          class={`filter-btn rounded-full border px-4 py-1.5 text-xs font-medium transition ${
+            i === 0
+              ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-300"
+              : "border-white/10 text-neutral-400 hover:border-white/30 hover:text-neutral-200"
+          }`}
+          data-filter={theme === "All" ? "all" : slug(theme)}
+          aria-pressed={i === 0 ? "true" : "false"}
+        >
+          {theme}
+        </button>
+      ))}
+    </div>
+
+    <p id="filter-count" class="mt-6 font-mono text-xs text-neutral-500">
+      Showing {allProjects.length} projects
+    </p>
+
+    <div class="mt-4 grid gap-5 sm:grid-cols-2" id="project-grid">
+      {allProjects.map((project, i) => (
+        <a
+          href={`/projects/${project.id}`}
+          class="project-card glow-card group rounded-lg border border-white/10 bg-white/[0.02] p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-400/40"
+          data-theme={slug(project.data.theme)}
+          data-reveal
+          style={`--reveal-delay:${(i % 4) * 80}ms`}
+        >
+          <p class="font-mono text-[11px] uppercase tracking-wide text-emerald-400/70">{project.data.theme}</p>
+          <h3 class="mt-2 text-sm font-semibold text-neutral-100 group-hover:text-emerald-300">
+            {project.data.title}
+          </h3>
+          <p class="mt-2 text-sm leading-relaxed text-neutral-500">{project.data.summary}</p>
+          <div class="mt-4 flex flex-wrap gap-1.5">
+            {project.data.techStack.slice(0, 4).map((tech) => (
+              <span class="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-neutral-400">
+                {tech}
+              </span>
             ))}
           </div>
-        </div>
-      );
-    })}
+        </a>
+      ))}
+    </div>
+
+    <p id="empty-state" class="mt-10 hidden text-sm text-neutral-500">
+      No projects in this category.
+    </p>
   </section>
 </Layout>
+
+<script>
+  const setupFilters = () => {
+    const buttons = document.querySelectorAll<HTMLButtonElement>(".filter-btn");
+    const cards = document.querySelectorAll<HTMLElement>(".project-card");
+    const count = document.getElementById("filter-count");
+    const empty = document.getElementById("empty-state");
+    if (!buttons.length) return;
+
+    const activeClasses = ["border-emerald-400/60", "bg-emerald-400/10", "text-emerald-300"];
+    const idleClasses = ["border-white/10", "text-neutral-400"];
+
+    const apply = (filter: string) => {
+      let visible = 0;
+      cards.forEach((card) => {
+        const match = filter === "all" || card.dataset.theme === filter;
+        card.classList.toggle("hidden", !match);
+        if (match) {
+          visible++;
+          // retrigger reveal
+          card.classList.remove("is-visible");
+          requestAnimationFrame(() => card.classList.add("is-visible"));
+        }
+      });
+      if (count) count.textContent = `Showing ${visible} project${visible === 1 ? "" : "s"}`;
+      if (empty) empty.classList.toggle("hidden", visible !== 0);
+    };
+
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        buttons.forEach((b) => {
+          b.setAttribute("aria-pressed", "false");
+          b.classList.remove(...activeClasses);
+          b.classList.add(...idleClasses);
+        });
+        btn.setAttribute("aria-pressed", "true");
+        btn.classList.remove(...idleClasses);
+        btn.classList.add(...activeClasses);
+        apply(btn.dataset.filter || "all");
+      });
+    });
+  };
+
+  setupFilters();
+  document.addEventListener("astro:page-load", setupFilters);
+</script>

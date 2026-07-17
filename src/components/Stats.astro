@@ -1,0 +1,100 @@
+---
+const stats = [
+  { value: 76, suffix: "%", label: "Win rate vs GPT-4.1 in blinded expert A/B", decimals: 0 },
+  { value: 15, prefix: "~", suffix: "%", label: "F1 improvement delivered in production", decimals: 0 },
+  { value: 40, suffix: "%", label: "Annotation cycle-time reduction", decimals: 0 },
+  { value: 6, prefix: "#", label: "on Deep Research Bench (open_deep_research)", decimals: 0 },
+];
+---
+
+<section class="mx-auto max-w-5xl px-6 py-14">
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-4" id="stats-grid">
+    {stats.map((stat, i) => (
+      <div
+        data-reveal
+        style={`--reveal-delay:${i * 90}ms`}
+        class="glow-card rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center"
+      >
+        <p
+          class="stat-num text-3xl font-bold tracking-tight text-emerald-400 sm:text-4xl"
+          data-target={stat.value}
+          data-decimals={stat.decimals}
+          data-prefix={stat.prefix ?? ""}
+          data-suffix={stat.suffix ?? ""}
+        >
+          {stat.prefix ?? ""}0{stat.suffix ?? ""}
+        </p>
+        <p class="mt-2 text-xs leading-relaxed text-neutral-400">{stat.label}</p>
+      </div>
+    ))}
+  </div>
+</section>
+
+<script>
+  const runCounters = () => {
+    const nums = document.querySelectorAll<HTMLElement>(".stat-num");
+    if (!nums.length) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const animate = (el: HTMLElement) => {
+      const target = parseFloat(el.dataset.target || "0");
+      const decimals = parseInt(el.dataset.decimals || "0", 10);
+      const prefix = el.dataset.prefix || "";
+      const suffix = el.dataset.suffix || "";
+      const format = (v: number) => `${prefix}${v.toFixed(decimals)}${suffix}`;
+
+      if (reduced) {
+        el.textContent = format(target);
+        return;
+      }
+
+      const duration = 1400;
+      const start = performance.now();
+      const step = (now: number) => {
+        const p = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = format(target * eased);
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = format(target);
+      };
+      requestAnimationFrame(step);
+    };
+
+    const pending = new Set(nums);
+    const inView = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      return r.top < vh - 40 && r.bottom > 0;
+    };
+
+    const check = () => {
+      pending.forEach((el) => {
+        if (inView(el)) {
+          animate(el);
+          pending.delete(el);
+        }
+      });
+      if (pending.size === 0) {
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onScroll);
+      }
+    };
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        check();
+        ticking = false;
+      });
+    };
+
+    check();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+  };
+
+  runCounters();
+  document.addEventListener("astro:page-load", runCounters);
+</script>
