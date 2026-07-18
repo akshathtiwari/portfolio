@@ -1,0 +1,1620 @@
+---
+// Immersive, self-contained interactive essay on why attention divides by √d_k.
+// Everything is namespaced under `.saa` so global site styles never collide.
+// Rendered full-bleed by src/pages/blog/[id].astro when a post sets `immersive: true`.
+//
+// Fonts + KaTeX are bundled locally (no CDN): math is pre-rendered to HTML at build
+// time, so there is no render-blocking network request and no runtime math library.
+import katex from "katex";
+import "katex/dist/katex.min.css";
+import "@fontsource/space-grotesk/400.css";
+import "@fontsource/space-grotesk/500.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+
+const tex = (s: string) => katex.renderToString(s, { displayMode: true, throwOnError: false });
+
+const MATH = {
+  dot: tex(String.raw`q \cdot k = \sum_{i=1}^{d_k} q_i k_i`),
+  termVar: tex(String.raw`\mathrm{Var}(q_i k_i) = E[q_i^2]\,E[k_i^2] = 1 \times 1 = 1`),
+  sumVar: tex(String.raw`\mathrm{Var}(q \cdot k) = \sum_{i=1}^{d_k} \mathrm{Var}(q_i k_i) = d_k`),
+  fix: tex(String.raw`\mathrm{Var}\!\left(\frac{q \cdot k}{\sqrt{d_k}}\right) = \frac{\mathrm{Var}(q \cdot k)}{d_k} = \frac{d_k}{d_k} = 1`),
+  temp: tex(String.raw`\mathrm{softmax}\!\left(\frac{z}{\tau}\right)\quad\text{with}\quad \tau = \sqrt{d_k}`),
+};
+---
+
+<div class="saa">
+  <div class="saa-progress" id="saaProgress"></div>
+
+  <div class="saa-header">
+    <p class="saa-eyebrow">signal chain notes · attention mechanics</p>
+    <h1>Every attention layer has a gain knob.<br />Most tutorials skip it.</h1>
+    <p class="saa-lede">
+      Why transformers divide by <span class="saa-mono">√d<sub>k</sub></span> before the softmax,
+      traced through variance, clipping, and one automatic gain control that fixes both.
+    </p>
+    <div class="saa-meters" aria-hidden="true">
+      <div class="saa-bar"></div><div class="saa-bar"></div><div class="saa-bar"></div><div class="saa-bar"></div>
+      <div class="saa-bar"></div><div class="saa-bar"></div><div class="saa-bar"></div><div class="saa-bar"></div>
+    </div>
+    <p class="saa-cue">↓ session starts below</p>
+  </div>
+
+  <div class="saa-main">
+    <!-- TRACK 1 — LINE CHECK -->
+    <section class="saa-track saa-reveal" id="saa-track1">
+      <p class="saa-eyebrow">track 01 · line check</p>
+      <h2>Meet the session players</h2>
+      <p>
+        Before any signal reaches the mixing bus, three channels are patched in for every token in
+        the sequence. Each one is just a learned linear projection of the same input embedding, sent
+        down a different cable.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">Channel strip</p>
+        <div class="saa-channels">
+          <div class="saa-channel">
+            <div class="saa-knob" aria-hidden="true"></div>
+            <div class="saa-tag">CH 1</div>
+            <h3>Query</h3>
+            <p>What this token is looking for. One query per position, asking the room a question.</p>
+          </div>
+          <div class="saa-channel">
+            <div class="saa-knob" aria-hidden="true"></div>
+            <div class="saa-tag">CH 2</div>
+            <h3>Key</h3>
+            <p>What this token is offering to be matched against. Every position broadcasts one.</p>
+          </div>
+          <div class="saa-channel">
+            <div class="saa-knob" aria-hidden="true"></div>
+            <div class="saa-tag">CH 3</div>
+            <h3>Value</h3>
+            <p>What actually gets blended into the output once the match is scored.</p>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        The score between a query and a key is their dot product, a single number that says how well
+        one token's question matches another token's offer. Stack those scores across every key, run
+        them through softmax, and you get a mixing ratio: how much of each Value gets pulled into the
+        output. That mixing ratio is <em>attention</em>. It sounds simple, and it is, right up until
+        you ask what happens to that dot product as the channel gets wider.
+      </p>
+    </section>
+
+    <!-- TRACK 2 — THE BUILD-UP -->
+    <section class="saa-track saa-reveal" id="saa-track2">
+      <p class="saa-eyebrow">track 02 · the build-up</p>
+      <h2>Stack enough channels and the meter climbs on its own</h2>
+      <p class="saa-lede">Nothing about any individual component changes. The meter still climbs.</p>
+
+      <p>
+        Fresh out of layer norm, each entry of <span class="saa-mono">q</span> and
+        <span class="saa-mono">k</span> is well behaved: mean 0, variance 1, roughly independent of
+        its neighbours. The dot product just sums the products of matching entries:
+      </p>
+
+      <div class="saa-math" set:html={MATH.dot}></div>
+
+      <p>
+        Look at one term. Since <span class="saa-mono">q<sub>i</sub></span> and
+        <span class="saa-mono">k<sub>i</sub></span> are independent with mean 0, that term has mean 0
+        too, so there is no systematic bias in either direction. But its <em>variance</em> is 1, the
+        same as every other term, regardless of how many dimensions the vectors have:
+      </p>
+
+      <div class="saa-math" set:html={MATH.termVar}></div>
+
+      <p>
+        Here is the part that catches people out. When you sum <em>independent</em> random variables,
+        variances add, not standard deviations. Every one of those small, well behaved terms is
+        contributing noise that does not cancel out in aggregate:
+      </p>
+
+      <div class="saa-math" set:html={MATH.sumVar}></div>
+
+      <p>
+        Nudge the channel count fader below and watch the readout. Each square is one dimension,
+        contributing exactly one unit of variance. Nothing about any single square changes as you add
+        more of them. What changes is the total.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">Variance accumulator</p>
+        <div class="saa-control-row">
+          <span class="saa-control-label">Channel count d<sub>k</sub></span>
+          <input type="range" id="saa-t2-slider" min="0" max="8" step="1" value="4"
+            aria-label="Channel count d_k" />
+          <span class="saa-fader-value" id="saa-t2-dval">64</span>
+        </div>
+        <div class="saa-tick-row"><span>4</span><span>8</span><span>16</span><span>32</span><span>64</span><span>128</span><span>256</span><span>512</span><span>1024</span></div>
+
+        <div class="saa-readouts">
+          <div class="saa-readout-card">
+            <div class="saa-label">Var(q·k)</div>
+            <div class="saa-value" id="saa-t2-var">64</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">σ = √d<sub>k</sub></div>
+            <div class="saa-value" id="saa-t2-std">8.00</div>
+          </div>
+        </div>
+
+        <div class="saa-block-grid" id="saa-t2-blocks" aria-hidden="true"></div>
+      </div>
+
+      <p>
+        At <span class="saa-mono">d<sub>k</sub></span> = 4 the standard deviation is a tame 2. By
+        <span class="saa-mono">d<sub>k</sub></span> = 512 it is over 22, and that is the raw score two
+        tokens get compared with, before softmax has done anything at all.
+      </p>
+    </section>
+
+    <!-- TRACK 3 — BENCH TEST (Monte Carlo) -->
+    <section class="saa-track saa-reveal" id="saa-track-mc">
+      <p class="saa-eyebrow">track 03 · bench test</p>
+      <h2>Do not take the algebra's word for it. Measure it.</h2>
+      <p>
+        The line <span class="saa-mono">Var(q·k) = d<sub>k</sub></span> is easy to write and easy to
+        distrust. So here is the bench version. The signal generator below draws two fresh random
+        vectors of dimension <span class="saa-mono">d<sub>k</sub></span>, each entry sampled mean 0 and
+        variance 1, takes their dot product, and drops that single number into a histogram. Then it
+        does it a few thousand more times.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">Signal generator · empirical bench</p>
+
+        <div class="saa-control-row">
+          <span class="saa-control-label">Channel count d<sub>k</sub></span>
+          <input type="range" id="saa-mc-slider" min="0" max="3" step="1" value="0"
+            aria-label="Channel count d_k" />
+          <span class="saa-fader-value" id="saa-mc-dval">4</span>
+        </div>
+        <div class="saa-tick-row" style="max-width:none;"><span>4</span><span>16</span><span>64</span><span>256</span></div>
+
+        <div class="saa-hist" id="saa-mc-hist" aria-hidden="true"></div>
+        <div class="saa-hist-axis"><span>−40</span><span>0</span><span>+40</span></div>
+
+        <div class="saa-control-row" style="margin-top:18px;">
+          <button class="saa-btn" id="saa-mc-run" type="button">Draw 3000 more</button>
+          <button class="saa-btn saa-btn-ghost" id="saa-mc-reset" type="button">Reset</button>
+          <span class="saa-fader-value" id="saa-mc-n" style="min-width:120px;">0 samples</span>
+        </div>
+
+        <div class="saa-readouts">
+          <div class="saa-readout-card">
+            <div class="saa-label">measured σ</div>
+            <div class="saa-value" id="saa-mc-mstd">0.00</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">theory √d<sub>k</sub></div>
+            <div class="saa-value safe" id="saa-mc-tstd">2.00</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">measured Var</div>
+            <div class="saa-value" id="saa-mc-mvar">0.00</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">theory d<sub>k</sub></div>
+            <div class="saa-value safe" id="saa-mc-tvar">4</div>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        The axis does not move. The spread does. At <span class="saa-mono">d<sub>k</sub></span> = 4 the
+        dot products pile up in a tight spike near zero. Step the fader up and the same axis has to
+        hold a much wider pile, because every extra dimension throws one more unit of variance onto a
+        sum that never learns to cancel. Measured σ tracks <span class="saa-mono">√d<sub>k</sub></span>
+        every time, which is the theory from Track 02 landing exactly where it said it would.
+      </p>
+    </section>
+
+    <!-- TRACK 4 — CLIPPING -->
+    <section class="saa-track saa-reveal" id="saa-track3">
+      <p class="saa-eyebrow">track 04 · clipping</p>
+      <h2>Turn the gain up and the mix collapses to one channel</h2>
+      <p>
+        Softmax is scale sensitive. Feed it logits with a wide spread and it does not distribute
+        attention gracefully. It slams almost all the weight onto whichever token happened to score
+        highest and drives everyone else toward zero. In audio terms: the signal clips.
+      </p>
+
+      <p>
+        Below is a query token scoring five candidate keys. The raw scores are fixed. What changes is
+        only the dimension the vectors live in, which sets how hard those scores get amplified before
+        softmax sees them.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">Softmax bus · no gain control</p>
+
+        <div class="saa-pill-row" id="saa-t3-presets">
+          <button class="saa-pill active" data-preset="0">sat → mat</button>
+          <button class="saa-pill" data-preset="1">on → mat</button>
+        </div>
+
+        <div class="saa-control-row">
+          <span class="saa-control-label">Channel count d<sub>k</sub></span>
+          <input type="range" id="saa-t3-slider" min="0" max="8" step="1" value="4"
+            aria-label="Channel count d_k" />
+          <span class="saa-fader-value" id="saa-t3-dval">64</span>
+        </div>
+        <div class="saa-tick-row"><span>4</span><span>8</span><span>16</span><span>32</span><span>64</span><span>128</span><span>256</span><span>512</span><span>1024</span></div>
+
+        <div class="saa-led-bank" id="saa-t3-leds"></div>
+
+        <div class="saa-readouts">
+          <div class="saa-readout-card">
+            <div class="saa-label">logit σ</div>
+            <div class="saa-value" id="saa-t3-std">5.84</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">top weight</div>
+            <div class="saa-value" id="saa-t3-max">98%</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">grad at top ≈ s(1−s)</div>
+            <div class="saa-value" id="saa-t3-grad">0.018</div>
+          </div>
+        </div>
+
+        <div class="saa-gauge-wrap">
+          <div class="saa-control-label" style="margin-bottom:0;">Logit spread</div>
+          <div class="saa-gauge"><div class="saa-gauge-marker" id="saa-t3-marker"></div></div>
+          <div class="saa-gauge-labels"><span>safe</span><span>saturating</span><span>clipped</span></div>
+        </div>
+      </div>
+
+      <p>
+        Push the fader past a few hundred dimensions and one channel pins near 100% while the rest go
+        dark. That is not the model getting more confident. It is the softmax input overflowing its
+        useful range. And the gradient of softmax involves a term like
+        <span class="saa-mono">s<sub>i</sub>(1−s<sub>i</sub>)</span>: once
+        <span class="saa-mono">s<sub>i</sub></span> is pinned near 0 or 1, that term collapses toward
+        zero too. The model cannot learn to redistribute attention, because there is almost no
+        gradient left to redistribute it with.
+      </p>
+    </section>
+
+    <!-- TRACK 5 — THE FIX -->
+    <section class="saa-track saa-reveal" id="saa-track4">
+      <p class="saa-eyebrow">track 05 · the fix</p>
+      <h2>The fix is one automatic gain control, not a bigger desk</h2>
+      <p>
+        You do not need a wider dynamic range or a cleverer softmax. You need to undo the one thing
+        that is actually growing: divide the score by <span class="saa-mono">√d<sub>k</sub></span>
+        before it reaches softmax.
+      </p>
+
+      <div class="saa-math" set:html={MATH.fix}></div>
+
+      <p>
+        That is the whole mechanism. It is not a bigger mixing desk or a smarter softmax. It is a gain
+        stage that exactly cancels the <span class="saa-mono">√d<sub>k</sub></span> growth, no matter
+        how many channels you are summing over. Flip the switch below on the same rig from Track 03 and
+        push the fader as far as it goes.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">Softmax bus · with gain control</p>
+
+        <div class="saa-pill-row" id="saa-t4-presets">
+          <button class="saa-pill active" data-preset="0">sat → mat</button>
+          <button class="saa-pill" data-preset="1">on → mat</button>
+        </div>
+
+        <div class="saa-toggle-row">
+          <label class="saa-toggle">
+            <input type="checkbox" id="saa-t4-agc" checked aria-label="Divide by root d_k" />
+            <span class="saa-toggle-track"></span>
+            <span class="saa-toggle-thumb"></span>
+          </label>
+          <span class="saa-toggle-label">divide by √d<sub>k</sub></span>
+          <span class="saa-toggle-led" id="saa-t4-led"></span>
+        </div>
+
+        <div class="saa-control-row">
+          <span class="saa-control-label">Channel count d<sub>k</sub></span>
+          <input type="range" id="saa-t4-slider" min="0" max="8" step="1" value="4"
+            aria-label="Channel count d_k" />
+          <span class="saa-fader-value" id="saa-t4-dval">64</span>
+        </div>
+        <div class="saa-tick-row"><span>4</span><span>8</span><span>16</span><span>32</span><span>64</span><span>128</span><span>256</span><span>512</span><span>1024</span></div>
+
+        <div class="saa-led-bank" id="saa-t4-leds"></div>
+
+        <div class="saa-readouts">
+          <div class="saa-readout-card">
+            <div class="saa-label">logit σ</div>
+            <div class="saa-value" id="saa-t4-std">0.73</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">top weight</div>
+            <div class="saa-value" id="saa-t4-max">43%</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">grad at top ≈ s(1−s)</div>
+            <div class="saa-value" id="saa-t4-grad">0.246</div>
+          </div>
+        </div>
+
+        <div class="saa-gauge-wrap">
+          <div class="saa-control-label" style="margin-bottom:0;">Logit spread</div>
+          <div class="saa-gauge"><div class="saa-gauge-marker" id="saa-t4-marker"></div></div>
+          <div class="saa-gauge-labels"><span>safe</span><span>saturating</span><span>clipped</span></div>
+        </div>
+      </div>
+
+      <p>
+        With the gain control engaged, the reading barely moves as you drag the fader from 4
+        dimensions to 1024. That is the invariance in the formula above, made visible: the correction
+        depends only on <span class="saa-mono">d<sub>k</sub></span> itself, so it scales exactly as fast
+        as the problem does.
+      </p>
+    </section>
+
+    <!-- TRACK 6 — WHY THE SQUARE ROOT -->
+    <section class="saa-track saa-reveal" id="saa-track-cmp">
+      <p class="saa-eyebrow">track 06 · why the square root</p>
+      <h2>Too little gain, just right, too much</h2>
+      <p>
+        Here is the question that always comes next: if the variance grew by a factor of
+        <span class="saa-mono">d<sub>k</sub></span>, why undo it with <span class="saa-mono">√d<sub>k</sub></span>
+        instead of the whole <span class="saa-mono">d<sub>k</sub></span>? Because you are correcting the
+        standard deviation, not the variance. Variance grows like <span class="saa-mono">d<sub>k</sub></span>,
+        so the spread you actually feel grows like its square root. Divide by that same square root and
+        the spread returns to 1. Divide by the full <span class="saa-mono">d<sub>k</sub></span> and you
+        overshoot in the other direction.
+      </p>
+      <p>
+        Three buses, one dimension fader, same raw scores. Watch all three at once as you push
+        <span class="saa-mono">d<sub>k</sub></span> up.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">A/B/C · three divisors, one signal</p>
+
+        <div class="saa-control-row">
+          <span class="saa-control-label">Channel count d<sub>k</sub></span>
+          <input type="range" id="saa-cmp-slider" min="0" max="8" step="1" value="6"
+            aria-label="Channel count d_k" />
+          <span class="saa-fader-value" id="saa-cmp-dval">256</span>
+        </div>
+        <div class="saa-tick-row"><span>4</span><span>8</span><span>16</span><span>32</span><span>64</span><span>128</span><span>256</span><span>512</span><span>1024</span></div>
+
+        <div class="saa-triptych">
+          <div class="saa-tri">
+            <div class="saa-tri-head">
+              <span class="saa-tri-name">÷ 1</span>
+              <span class="saa-tri-verdict warn" id="saa-cmp-a-v">clips</span>
+            </div>
+            <div class="saa-led-bank saa-led-mini" id="saa-cmp-a-leds"></div>
+            <div class="saa-tri-foot">logit σ <span id="saa-cmp-a-std">0.00</span></div>
+          </div>
+          <div class="saa-tri saa-tri-hero">
+            <div class="saa-tri-head">
+              <span class="saa-tri-name">÷ √d<sub>k</sub></span>
+              <span class="saa-tri-verdict safe" id="saa-cmp-b-v">balanced</span>
+            </div>
+            <div class="saa-led-bank saa-led-mini" id="saa-cmp-b-leds"></div>
+            <div class="saa-tri-foot">logit σ <span id="saa-cmp-b-std">0.00</span></div>
+          </div>
+          <div class="saa-tri">
+            <div class="saa-tri-head">
+              <span class="saa-tri-name">÷ d<sub>k</sub></span>
+              <span class="saa-tri-verdict warn" id="saa-cmp-c-v">washed out</span>
+            </div>
+            <div class="saa-led-bank saa-led-mini" id="saa-cmp-c-leds"></div>
+            <div class="saa-tri-foot">logit σ <span id="saa-cmp-c-std">0.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        Both extremes destroy the same thing: the model's ability to tell keys apart. On the left, one
+        channel pins to 100% and the differences that survive are all noise. On the right, dividing by
+        the full <span class="saa-mono">d<sub>k</sub></span> shrinks every logit toward zero, softmax
+        flattens to near-uniform, and every key gets roughly the same weight no matter how well it
+        matched. Only the middle bus keeps the spread near 1, where the differences the model learned
+        are the differences softmax actually acts on. That is the whole reason the exponent is
+        <span class="saa-mono">½</span> and not 1.
+      </p>
+    </section>
+
+    <!-- TRACK 7 — FULL MIXDOWN -->
+    <section class="saa-track saa-reveal" id="saa-track5">
+      <p class="saa-eyebrow">track 07 · full mixdown</p>
+      <h2>One rig, every control</h2>
+      <p>
+        Everything from the last three tracks, live on one console. Switch queries, drag the dimension
+        fader, toggle the gain control, and watch the logit spread, the gradient, and the channel bank
+        respond together.
+      </p>
+
+      <div class="saa-rack">
+        <span class="saa-screw-l" aria-hidden="true"></span><span class="saa-screw-r" aria-hidden="true"></span>
+        <p class="saa-rack-label">Master bus</p>
+
+        <div class="saa-pill-row" id="saa-t5-presets">
+          <button class="saa-pill active" data-preset="0">sat → mat</button>
+          <button class="saa-pill" data-preset="1">on → mat</button>
+        </div>
+
+        <div class="saa-toggle-row">
+          <label class="saa-toggle">
+            <input type="checkbox" id="saa-t5-agc" checked aria-label="Divide by root d_k" />
+            <span class="saa-toggle-track"></span>
+            <span class="saa-toggle-thumb"></span>
+          </label>
+          <span class="saa-toggle-label">divide by √d<sub>k</sub></span>
+          <span class="saa-toggle-led" id="saa-t5-led"></span>
+        </div>
+
+        <div class="saa-control-row">
+          <span class="saa-control-label">Channel count d<sub>k</sub></span>
+          <input type="range" id="saa-t5-slider" min="0" max="8" step="1" value="4"
+            aria-label="Channel count d_k" />
+          <span class="saa-fader-value" id="saa-t5-dval">64</span>
+        </div>
+        <div class="saa-tick-row"><span>4</span><span>8</span><span>16</span><span>32</span><span>64</span><span>128</span><span>256</span><span>512</span><span>1024</span></div>
+
+        <div class="saa-led-bank" id="saa-t5-leds"></div>
+
+        <div class="saa-readouts">
+          <div class="saa-readout-card">
+            <div class="saa-label">logit σ</div>
+            <div class="saa-value" id="saa-t5-std">0.73</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">top weight</div>
+            <div class="saa-value" id="saa-t5-max">43%</div>
+          </div>
+          <div class="saa-readout-card">
+            <div class="saa-label">grad at top ≈ s(1−s)</div>
+            <div class="saa-value" id="saa-t5-grad">0.246</div>
+          </div>
+        </div>
+
+        <div class="saa-gauge-wrap">
+          <div class="saa-control-label" style="margin-bottom:0;">Logit spread</div>
+          <div class="saa-gauge"><div class="saa-gauge-marker" id="saa-t5-marker"></div></div>
+          <div class="saa-gauge-labels"><span>safe</span><span>saturating</span><span>clipped</span></div>
+        </div>
+      </div>
+
+      <p>
+        Try both queries with the gain control off. One starts peaked, one starts nearly flat. It does
+        not matter. Once the dimension fader climbs far enough, both collapse to a single lit channel,
+        because the <em>differences</em> between raw scores get amplified by the same
+        <span class="saa-mono">√d<sub>k</sub></span> factor as everything else. The noise does not care
+        what the underlying signal looked like.
+      </p>
+    </section>
+
+    <!-- TRACK 8 — PATCH NOTES -->
+    <section class="saa-track saa-reveal" id="saa-track-temp">
+      <p class="saa-eyebrow">track 08 · patch notes</p>
+      <h2>You have seen this knob before: it is temperature</h2>
+      <p>
+        Strip the analogy away and <span class="saa-mono">√d<sub>k</sub></span> is a constant that
+        divides the logits before softmax. That is the exact shape of a softmax temperature:
+      </p>
+
+      <div class="saa-math" set:html={MATH.temp}></div>
+
+      <p>
+        Temperature is the one dial that stretches or compresses the gap between logits without
+        touching which one is largest. High temperature flattens the distribution toward uniform. Low
+        temperature sharpens it toward one-hot. Scaled attention is just softmax run at a fixed
+        temperature of <span class="saa-mono">√d<sub>k</sub></span>, chosen so the logit spread lands
+        near 1 no matter how wide the head is. The architecture sets it once, up front, instead of
+        leaving it to be tuned.
+      </p>
+      <p>
+        If you have ever reached for temperature scaling to calibrate a classifier's confidence, or
+        dialed sampling temperature on a generation head, this is the same lever seen from the other
+        end. Same mechanism, different point in the pipeline: one is picked by hand after training to
+        fix over-confident probabilities, the other is baked into the forward pass to keep gradients
+        alive during it. Once you see the <span class="saa-mono">√d<sub>k</sub></span> as a temperature,
+        it stops looking like a magic constant in a paper and starts looking like the one setting that
+        keeps softmax in its usable range.
+      </p>
+    </section>
+  </div>
+
+  <div class="saa-footer">
+    <p class="saa-eyebrow">liner notes</p>
+    <h2>Cheat sheet</h2>
+    <div class="saa-credits">
+      <dl>
+        <dt>Roles</dt>
+        <dd>Query asks, Key offers, Value is what gets mixed in once the match is scored.</dd>
+        <dt>The build-up</dt>
+        <dd>Var(q·k) = d<sub>k</sub>, because independent unit-variance terms add their variances when summed.</dd>
+        <dt>The problem</dt>
+        <dd>Large-magnitude logits saturate softmax toward one-hot, and the softmax gradient s(1−s) vanishes right along with it.</dd>
+        <dt>The fix</dt>
+        <dd>Divide the score by √d<sub>k</sub> before softmax. Var becomes 1 regardless of dimension, so the correction grows exactly as fast as the problem.</dd>
+        <dt>Why √d<sub>k</sub></dt>
+        <dd>You are correcting the spread (standard deviation), which grows like √d<sub>k</sub>. Divide by d<sub>k</sub> instead and softmax washes out to uniform.</dd>
+        <dt>Same knob</dt>
+        <dd>Dividing logits by a constant is a softmax temperature. Scaled attention runs at a fixed temperature of √d<sub>k</sub>.</dd>
+      </dl>
+    </div>
+    <p class="saa-foot-note">
+      Traced from the original scaling argument in Vaswani et al., <em>Attention Is All You Need</em>
+      (2017), worked through here with a gain-staging analogy instead of the usual bare derivation.
+    </p>
+  </div>
+</div>
+
+<style is:global>
+  .saa {
+    --bg: #17161a;
+    --bg-2: #131217;
+    --panel: #201f24;
+    --panel-2: #28262c;
+    --border: #3c3a40;
+    --border-strong: #524f57;
+    --text: #ece9e4;
+    --text-dim: #a9a4a0;
+    --text-faint: #726d6c;
+    --amber: #e8a33d;
+    --amber-dim: #8a6527;
+    --amber-glow: rgba(232, 163, 61, 0.35);
+    --teal: #4fb8a6;
+    --teal-glow: rgba(79, 184, 166, 0.35);
+    --red: #e2504a;
+    --red-glow: rgba(226, 80, 74, 0.45);
+    --radius: 10px;
+    --font-display: "Space Grotesk", sans-serif;
+    --font-body: "IBM Plex Sans", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .saa * {
+    box-sizing: border-box;
+  }
+  .saa ::selection {
+    background: var(--amber-glow);
+    color: var(--text);
+  }
+  .saa a {
+    color: var(--amber);
+    text-decoration-color: var(--amber-dim);
+  }
+  .saa a:focus-visible,
+  .saa button:focus-visible,
+  .saa input:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  /* ---------- layout ---------- */
+  .saa-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber-glow);
+    z-index: 100;
+    transition: width 0.08s linear;
+  }
+  .saa-main,
+  .saa-header,
+  .saa-footer {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  .saa-track {
+    padding: 96px 0;
+    border-top: 1px solid var(--border);
+  }
+  .saa-track:first-child {
+    border-top: none;
+  }
+  .saa-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .saa-reveal.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---------- type ---------- */
+  .saa-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .saa-eyebrow::before {
+    content: "";
+    width: 18px;
+    height: 1px;
+    background: var(--amber-dim);
+  }
+  .saa h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(32px, 5.4vw, 52px);
+    line-height: 1.08;
+    margin: 0 0 20px;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .saa h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(24px, 3.4vw, 32px);
+    line-height: 1.2;
+    margin: 0 0 18px;
+    color: var(--text);
+  }
+  .saa h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 19px;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+  .saa p {
+    margin: 0 0 18px;
+    color: var(--text);
+  }
+  .saa p.saa-lede {
+    font-size: 19px;
+    color: var(--text-dim);
+    max-width: 58ch;
+  }
+  .saa .saa-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* ---------- hero ---------- */
+  .saa-header {
+    padding-top: 120px;
+    padding-bottom: 80px;
+    position: relative;
+  }
+  .saa-meters {
+    display: flex;
+    gap: 8px;
+    margin-top: 44px;
+    height: 64px;
+    align-items: flex-end;
+  }
+  .saa-bar {
+    width: 10px;
+    border-radius: 2px 2px 0 0;
+    background: linear-gradient(to top, var(--teal), var(--amber) 70%, var(--red) 92%);
+    opacity: 0.85;
+    animation: saa-idle-meter 2.6s ease-in-out infinite;
+  }
+  .saa-bar:nth-child(1) { height: 38%; animation-delay: 0s; }
+  .saa-bar:nth-child(2) { height: 62%; animation-delay: 0.2s; }
+  .saa-bar:nth-child(3) { height: 28%; animation-delay: 0.4s; }
+  .saa-bar:nth-child(4) { height: 74%; animation-delay: 0.1s; }
+  .saa-bar:nth-child(5) { height: 44%; animation-delay: 0.3s; }
+  .saa-bar:nth-child(6) { height: 56%; animation-delay: 0.5s; }
+  .saa-bar:nth-child(7) { height: 32%; animation-delay: 0.25s; }
+  .saa-bar:nth-child(8) { height: 66%; animation-delay: 0.15s; }
+  @keyframes saa-idle-meter {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(0.72); }
+  }
+  .saa-cue {
+    margin-top: 36px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+  }
+
+  /* ---------- rack panel ---------- */
+  .saa-rack {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 26px;
+    margin: 28px 0;
+    background-image: repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.012) 0px,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+  .saa-rack::before,
+  .saa-rack::after,
+  .saa-rack .saa-screw-l,
+  .saa-rack .saa-screw-r {
+    content: "";
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border-strong);
+    top: 10px;
+  }
+  .saa-rack::before { left: 10px; }
+  .saa-rack::after { right: 10px; }
+  .saa-rack .saa-screw-l { bottom: 10px; left: 10px; top: auto; }
+  .saa-rack .saa-screw-r { bottom: 10px; right: 10px; top: auto; }
+  .saa-rack-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 18px;
+  }
+
+  /* ---------- channel cards ---------- */
+  .saa-channels {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 10px;
+  }
+  .saa-channel {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 14px;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .saa-channel:hover {
+    border-color: var(--amber-dim);
+    transform: translateY(-2px);
+  }
+  .saa-channel .saa-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+  }
+  .saa-channel h3 {
+    margin: 8px 0 6px;
+    font-size: 17px;
+  }
+  .saa-channel p {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    margin: 0;
+  }
+  .saa-knob {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4a4750, #201f24);
+    border: 1px solid var(--border-strong);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .saa-knob::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 1.5px;
+    height: 7px;
+    background: var(--amber);
+    transform: translateX(-50%);
+  }
+
+  /* ---------- fader ---------- */
+  .saa-control-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0 8px;
+    flex-wrap: wrap;
+  }
+  .saa-control-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    min-width: 112px;
+  }
+  .saa input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    min-width: 160px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-strong);
+    outline: none;
+  }
+  .saa input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 26px;
+    height: 16px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #cfcac2, #8f8a85);
+    border: 1px solid #55514c;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    position: relative;
+    margin-top: -6px;
+  }
+  .saa input[type="range"]::-webkit-slider-thumb:hover {
+    background: linear-gradient(180deg, #ddd8d0, #a29c96);
+  }
+  .saa input[type="range"]::-moz-range-thumb {
+    width: 26px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #55514c;
+    background: linear-gradient(180deg, #cfcac2, #8f8a85);
+    cursor: pointer;
+  }
+  .saa-fader-value {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--amber);
+    min-width: 60px;
+    text-align: right;
+  }
+  .saa-tick-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    margin: 0 0 4px 0;
+    padding: 0 2px;
+  }
+
+  /* ---------- readout grid ---------- */
+  .saa-readouts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+  }
+  .saa-readout-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .saa-readout-card .saa-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .saa-readout-card .saa-value {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: var(--text);
+  }
+  .saa-readout-card .saa-value.warn { color: var(--red); }
+  .saa-readout-card .saa-value.safe { color: var(--teal); }
+
+  /* ---------- gauge ---------- */
+  .saa-gauge-wrap { margin-top: 22px; }
+  .saa-gauge {
+    position: relative;
+    height: 10px;
+    border-radius: 5px;
+    margin-top: 14px;
+    background: linear-gradient(to right, var(--teal), var(--amber) 50%, var(--red) 100%);
+  }
+  .saa-gauge-marker {
+    position: absolute;
+    top: -7px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 9px solid var(--text);
+    transform: translateX(-50%);
+    transition: left 0.15s ease;
+  }
+  .saa-gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-top: 6px;
+  }
+
+  /* ---------- LED bank ---------- */
+  .saa-led-bank {
+    display: flex;
+    gap: 14px;
+    margin-top: 26px;
+    justify-content: space-between;
+  }
+  .saa-led-channel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .saa-led-strip {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+    height: 96px;
+    justify-content: flex-start;
+    width: 20px;
+  }
+  .saa-led-seg {
+    width: 100%;
+    height: 9px;
+    border-radius: 2px;
+    background: #2a2830;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+  }
+  .saa-led-seg.lit-teal { background: var(--teal); box-shadow: 0 0 6px var(--teal-glow); }
+  .saa-led-seg.lit-amber { background: var(--amber); box-shadow: 0 0 6px var(--amber-glow); }
+  .saa-led-seg.lit-red { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+  .saa-led-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+  }
+  .saa-led-pct {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .saa-led-channel.query .saa-led-name { color: var(--amber); font-weight: 500; }
+  .saa-led-channel.query { position: relative; }
+  .saa-led-channel.query::before {
+    content: "QUERY";
+    position: absolute;
+    top: -20px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--amber);
+  }
+
+  /* ---------- toggle ---------- */
+  .saa-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .saa-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+  }
+  .saa-toggle input {
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    position: absolute;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .saa-toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    transition: background 0.2s;
+  }
+  .saa-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #8f8a85;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .saa-toggle input:checked ~ .saa-toggle-track {
+    background: rgba(79, 184, 166, 0.18);
+    border-color: var(--teal);
+  }
+  .saa-toggle input:checked ~ .saa-toggle-thumb {
+    transform: translateX(20px);
+    background: var(--teal);
+    box-shadow: 0 0 8px var(--teal-glow);
+  }
+  .saa-toggle-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .saa-toggle-led {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3a3730;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .saa-toggle-led.on {
+    background: var(--teal);
+    box-shadow: 0 0 6px var(--teal-glow);
+  }
+
+  /* ---------- preset pills ---------- */
+  .saa-pill-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .saa-pill {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .saa-pill.active {
+    border-color: var(--amber);
+    color: var(--amber);
+    box-shadow: 0 0 0 1px var(--amber-dim) inset;
+  }
+
+  /* ---------- block grid ---------- */
+  .saa-block-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 22px;
+    max-width: 100%;
+  }
+  .saa-unit-block {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--amber);
+    opacity: 0.85;
+  }
+  .saa-block-more {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    align-self: center;
+    margin-left: 6px;
+  }
+
+  /* ---------- buttons ---------- */
+  .saa-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .saa-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .saa-btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+  }
+
+  /* ---------- histogram (Monte Carlo bench) ---------- */
+  .saa-hist {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 150px;
+    margin-top: 22px;
+    padding: 0 2px;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .saa-hist-bin {
+    flex: 1;
+    min-height: 0;
+    background: linear-gradient(to top, var(--teal), var(--amber) 78%, var(--red) 98%);
+    border-radius: 2px 2px 0 0;
+    opacity: 0.9;
+    transition: height 0.18s ease;
+  }
+  .saa-hist-axis {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-top: 6px;
+  }
+
+  /* ---------- triptych (why √d_k) ---------- */
+  .saa-triptych {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .saa-tri {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 12px 12px;
+  }
+  .saa-tri-hero {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 1px rgba(79, 184, 166, 0.25) inset;
+  }
+  .saa-tri-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .saa-tri-name {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text);
+  }
+  .saa-tri-verdict {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .saa-tri-verdict.safe { color: var(--teal); }
+  .saa-tri-verdict.warn { color: var(--red); }
+  .saa-tri-foot {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 8px;
+    text-align: center;
+  }
+  .saa-led-mini { margin-top: 10px; gap: 6px; }
+  .saa-led-mini .saa-led-strip { height: 60px; width: 12px; }
+  .saa-led-mini .saa-led-name { font-size: 9px; }
+  .saa-led-mini .saa-led-pct { font-size: 9px; }
+  .saa-led-mini .saa-led-channel.query::before { display: none; }
+
+  @media (max-width: 560px) {
+    .saa-triptych { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- math block ---------- */
+  .saa-math {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 18px 0;
+    overflow-x: auto;
+  }
+  .saa .katex {
+    color: var(--text) !important;
+    font-size: 1.02em;
+  }
+
+  /* ---------- footer ---------- */
+  .saa-footer {
+    padding-top: 80px;
+    padding-bottom: 100px;
+    border-top: 1px solid var(--border);
+  }
+  .saa-credits { margin-top: 24px; }
+  .saa-credits dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 20px;
+    font-size: 14px;
+  }
+  .saa-credits dt {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--amber);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-top: 2px;
+  }
+  .saa-credits dd { margin: 0; color: var(--text-dim); }
+  .saa-foot-note {
+    margin-top: 48px;
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+
+  @media (max-width: 640px) {
+    .saa-channels { grid-template-columns: 1fr; }
+    .saa-led-bank { gap: 6px; }
+    .saa-led-strip { width: 16px; }
+    .saa-header { padding-top: 80px; padding-bottom: 60px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .saa * {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    /* ---------- scroll progress ---------- */
+    var bar = document.getElementById("saaProgress");
+    function updateProgress() {
+      var h = document.documentElement;
+      var scrolled = h.scrollTop;
+      var max = h.scrollHeight - h.clientHeight;
+      var pct = max > 0 ? (scrolled / max) * 100 : 0;
+      if (bar) bar.style.width = pct + "%";
+    }
+    document.addEventListener("scroll", updateProgress, { passive: true });
+    updateProgress();
+
+    /* ---------- reveal on scroll ---------- */
+    var items = document.querySelectorAll(".saa-reveal");
+    if (!("IntersectionObserver" in window)) {
+      items.forEach(function (el) { el.classList.add("in-view"); });
+    } else {
+      var io = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in-view");
+              io.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.12 }
+      );
+      items.forEach(function (el) { io.observe(el); });
+    }
+
+    /* ---------- shared math helpers ---------- */
+    var D_OPTIONS = [4, 8, 16, 32, 64, 128, 256, 512, 1024];
+    var BASE_D = 64;
+    var TOKENS = ["the", "cat", "sat", "on", "mat"];
+    var PRESETS = [
+      { name: "sat → mat", raw: [8, 3, 12, -5, 1], queryIdx: 2 },
+      { name: "on → mat", raw: [1, -2, 4, 9, 3], queryIdx: 3 },
+    ];
+    var SEG_COUNT = 8;
+
+    function softmax(arr) {
+      var m = Math.max.apply(null, arr);
+      var exps = arr.map(function (x) { return Math.exp(x - m); });
+      var sum = exps.reduce(function (a, b) { return a + b; }, 0);
+      return exps.map(function (e) { return e / sum; });
+    }
+    function stdDev(arr) {
+      var mean = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+      var variance =
+        arr.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / arr.length;
+      return Math.sqrt(variance);
+    }
+    function computeLogits(raw, d) {
+      var scaleFactor = Math.sqrt(d / BASE_D);
+      var unscaled = raw.map(function (r) { return r * scaleFactor; });
+      var scaled = raw.map(function (r) { return (r * scaleFactor) / Math.sqrt(d); });
+      return { unscaled: unscaled, scaled: scaled };
+    }
+    function segClass(segIndex) {
+      if (segIndex >= 6) return "lit-red";
+      if (segIndex >= 4) return "lit-amber";
+      return "lit-teal";
+    }
+    function renderLedBank(containerEl, weights, queryIdx) {
+      containerEl.innerHTML = "";
+      weights.forEach(function (w, i) {
+        var lit = Math.round(w * SEG_COUNT);
+        var col = document.createElement("div");
+        col.className = "saa-led-channel" + (i === queryIdx ? " query" : "");
+        var strip = document.createElement("div");
+        strip.className = "saa-led-strip";
+        for (var s = 0; s < SEG_COUNT; s++) {
+          var seg = document.createElement("div");
+          seg.className = "saa-led-seg" + (s < lit ? " " + segClass(s) : "");
+          strip.appendChild(seg);
+        }
+        var name = document.createElement("div");
+        name.className = "saa-led-name";
+        name.textContent = TOKENS[i];
+        var pct = document.createElement("div");
+        pct.className = "saa-led-pct";
+        pct.textContent = Math.round(w * 100) + "%";
+        col.appendChild(strip);
+        col.appendChild(name);
+        col.appendChild(pct);
+        containerEl.appendChild(col);
+      });
+    }
+    function updateGauge(markerEl, std, maxStd) {
+      var pct = Math.min(Math.max(std / maxStd, 0), 1) * 100;
+      markerEl.style.left = pct + "%";
+    }
+
+    /* ---------- Track 2: variance builder ---------- */
+    (function () {
+      var slider = document.getElementById("saa-t2-slider");
+      var dval = document.getElementById("saa-t2-dval");
+      var varEl = document.getElementById("saa-t2-var");
+      var stdEl = document.getElementById("saa-t2-std");
+      var blocks = document.getElementById("saa-t2-blocks");
+      var CAP = 64;
+      if (!slider) return;
+
+      function render() {
+        var d = D_OPTIONS[parseInt(slider.value, 10)];
+        dval.textContent = d;
+        varEl.textContent = d;
+        stdEl.textContent = Math.sqrt(d).toFixed(2);
+        blocks.innerHTML = "";
+        var shown = Math.min(d, CAP);
+        for (var i = 0; i < shown; i++) {
+          var b = document.createElement("div");
+          b.className = "saa-unit-block";
+          blocks.appendChild(b);
+        }
+        if (d > CAP) {
+          var more = document.createElement("span");
+          more.className = "saa-block-more";
+          more.textContent = "+ " + (d - CAP) + " more channels";
+          blocks.appendChild(more);
+        }
+      }
+      slider.addEventListener("input", render);
+      render();
+    })();
+
+    /* ---------- generic softmax-bus wiring for tracks 3/4/5 ---------- */
+    function wireBus(prefix, opts) {
+      opts = opts || {};
+      var hasAgc = !!opts.hasAgc;
+      var slider = document.getElementById(prefix + "-slider");
+      if (!slider) return;
+      var dval = document.getElementById(prefix + "-dval");
+      var ledBank = document.getElementById(prefix + "-leds");
+      var stdEl = document.getElementById(prefix + "-std");
+      var maxEl = document.getElementById(prefix + "-max");
+      var gradEl = document.getElementById(prefix + "-grad");
+      var marker = document.getElementById(prefix + "-marker");
+      var presetBtns = document.querySelectorAll("#" + prefix + "-presets .saa-pill");
+      var agcCheckbox = hasAgc ? document.getElementById(prefix + "-agc") : null;
+      var agcLed = hasAgc ? document.getElementById(prefix + "-led") : null;
+      var presetIdx = 0;
+      var MAX_STD = 25;
+
+      function render() {
+        var d = D_OPTIONS[parseInt(slider.value, 10)];
+        dval.textContent = d;
+        var preset = PRESETS[presetIdx];
+        var logits = computeLogits(preset.raw, d);
+        var useScaled = hasAgc ? agcCheckbox.checked : false;
+        var active = useScaled ? logits.scaled : logits.unscaled;
+        var weights = softmax(active);
+        var std = stdDev(active);
+        var maxW = Math.max.apply(null, weights);
+
+        renderLedBank(ledBank, weights, preset.queryIdx);
+        stdEl.textContent = std.toFixed(2);
+        maxEl.textContent = Math.round(maxW * 100) + "%";
+        maxEl.className = "saa-value" + (maxW > 0.85 ? " warn" : maxW < 0.5 ? " safe" : "");
+        gradEl.textContent = (maxW * (1 - maxW)).toFixed(3);
+        updateGauge(marker, std, MAX_STD);
+
+        if (hasAgc && agcLed) {
+          agcLed.classList.toggle("on", agcCheckbox.checked);
+        }
+      }
+
+      slider.addEventListener("input", render);
+      presetBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          presetBtns.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          presetIdx = parseInt(btn.getAttribute("data-preset"), 10);
+          render();
+        });
+      });
+      if (hasAgc) agcCheckbox.addEventListener("change", render);
+
+      render();
+    }
+
+    wireBus("saa-t3", { hasAgc: false });
+    wireBus("saa-t4", { hasAgc: true });
+    wireBus("saa-t5", { hasAgc: true });
+
+    /* ---------- Track 03: Monte Carlo bench ---------- */
+    (function () {
+      var slider = document.getElementById("saa-mc-slider");
+      if (!slider) return;
+      var dval = document.getElementById("saa-mc-dval");
+      var hist = document.getElementById("saa-mc-hist");
+      var nEl = document.getElementById("saa-mc-n");
+      var mStdEl = document.getElementById("saa-mc-mstd");
+      var tStdEl = document.getElementById("saa-mc-tstd");
+      var mVarEl = document.getElementById("saa-mc-mvar");
+      var tVarEl = document.getElementById("saa-mc-tvar");
+      var runBtn = document.getElementById("saa-mc-run");
+      var resetBtn = document.getElementById("saa-mc-reset");
+
+      var MC_D = [4, 16, 64, 256];
+      var BINS = 41;
+      var RANGE = 40; // fixed axis, so widening is visible
+      var BIN_W = (2 * RANGE) / BINS;
+      var BATCH = 3000;
+
+      var bars = [];
+      for (var b = 0; b < BINS; b++) {
+        var bar = document.createElement("div");
+        bar.className = "saa-hist-bin";
+        bar.style.height = "0%";
+        hist.appendChild(bar);
+        bars.push(bar);
+      }
+
+      var counts, n, sum, sumSq;
+      function reset() {
+        counts = new Array(BINS).fill(0);
+        n = 0;
+        sum = 0;
+        sumSq = 0;
+      }
+
+      // Box-Muller standard normal.
+      var spare = null;
+      function gauss() {
+        if (spare !== null) {
+          var v = spare;
+          spare = null;
+          return v;
+        }
+        var u1 = Math.random() || 1e-9;
+        var u2 = Math.random();
+        var mag = Math.sqrt(-2 * Math.log(u1));
+        spare = mag * Math.sin(2 * Math.PI * u2);
+        return mag * Math.cos(2 * Math.PI * u2);
+      }
+
+      function drawBatch(d, count) {
+        for (var s = 0; s < count; s++) {
+          var dot = 0;
+          for (var i = 0; i < d; i++) dot += gauss() * gauss();
+          sum += dot;
+          sumSq += dot * dot;
+          n++;
+          var idx = Math.floor((dot + RANGE) / BIN_W);
+          if (idx < 0) idx = 0;
+          if (idx >= BINS) idx = BINS - 1;
+          counts[idx]++;
+        }
+      }
+
+      function render() {
+        var max = 1;
+        for (var i = 0; i < BINS; i++) if (counts[i] > max) max = counts[i];
+        for (var j = 0; j < BINS; j++) {
+          bars[j].style.height = ((counts[j] / max) * 100).toFixed(1) + "%";
+        }
+        nEl.textContent = n.toLocaleString() + " samples";
+        if (n > 1) {
+          var mean = sum / n;
+          var variance = sumSq / n - mean * mean;
+          if (variance < 0) variance = 0;
+          mStdEl.textContent = Math.sqrt(variance).toFixed(2);
+          mVarEl.textContent = variance.toFixed(1);
+        } else {
+          mStdEl.textContent = "0.00";
+          mVarEl.textContent = "0.0";
+        }
+      }
+
+      function setDim(newRun) {
+        var d = MC_D[parseInt(slider.value, 10)];
+        dval.textContent = d;
+        tStdEl.textContent = Math.sqrt(d).toFixed(2);
+        tVarEl.textContent = d;
+        reset();
+        if (newRun) drawBatch(d, BATCH);
+        render();
+      }
+
+      slider.addEventListener("input", function () { setDim(true); });
+      runBtn.addEventListener("click", function () {
+        drawBatch(MC_D[parseInt(slider.value, 10)], BATCH);
+        render();
+      });
+      resetBtn.addEventListener("click", function () { setDim(false); });
+
+      setDim(true);
+    })();
+
+    /* ---------- Track 06: why the square root (three divisors) ---------- */
+    (function () {
+      var slider = document.getElementById("saa-cmp-slider");
+      if (!slider) return;
+      var dval = document.getElementById("saa-cmp-dval");
+      var preset = PRESETS[0];
+
+      var banks = [
+        { leds: "saa-cmp-a-leds", std: "saa-cmp-a-std", v: "saa-cmp-a-v", div: function () { return 1; } },
+        { leds: "saa-cmp-b-leds", std: "saa-cmp-b-std", v: "saa-cmp-b-v", div: function (d) { return Math.sqrt(d); } },
+        { leds: "saa-cmp-c-leds", std: "saa-cmp-c-std", v: "saa-cmp-c-v", div: function (d) { return d; } },
+      ];
+
+      function verdictFor(maxW) {
+        if (maxW >= 0.8) return { t: "clips", c: "warn" };
+        if (maxW <= 0.24) return { t: "washed out", c: "warn" };
+        return { t: "balanced", c: "safe" };
+      }
+
+      function render() {
+        var d = D_OPTIONS[parseInt(slider.value, 10)];
+        dval.textContent = d;
+        var scaleFactor = Math.sqrt(d / BASE_D);
+        banks.forEach(function (bank) {
+          var divisor = bank.div(d);
+          var logits = preset.raw.map(function (r) { return (r * scaleFactor) / divisor; });
+          var weights = softmax(logits);
+          var maxW = Math.max.apply(null, weights);
+          renderLedBank(document.getElementById(bank.leds), weights, preset.queryIdx);
+          document.getElementById(bank.std).textContent = stdDev(logits).toFixed(2);
+          var verdict = verdictFor(maxW);
+          var vEl = document.getElementById(bank.v);
+          vEl.textContent = verdict.t;
+          vEl.className = "saa-tri-verdict " + verdict.c;
+        });
+      }
+
+      slider.addEventListener("input", render);
+      render();
+    })();
+  })();
+</script>

@@ -1,0 +1,12 @@
+---
+title: "Why We Scale Attention by √dₖ"
+description: "An interactive walk through the one line every attention layer runs and most tutorials skip: dividing the dot product by √dₖ before softmax. Traced through variance, softmax saturation, and vanishing gradients."
+date: 2026-07-18
+tags: ["transformers", "attention", "interactive", "math"]
+draft: false
+immersive: true
+---
+
+import ScaledAttention from "../../components/blog/ScaledAttention.astro";
+
+<ScaledAttention />

@@ -29,6 +29,8 @@ const blog = defineCollection({
     date: z.coerce.date(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
+    // Full-bleed posts render their own layout/canvas instead of the .prose column.
+    immersive: z.boolean().default(false),
   }),
 });
 
