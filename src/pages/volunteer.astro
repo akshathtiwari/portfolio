@@ -1,0 +1,99 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { site } from "../lib/site";
+
+const offerings = [
+  {
+    title: "Predictive & Classification Models",
+    body: "Building models for forecasting, risk scoring, beneficiary targeting, or triage from your existing data.",
+  },
+  {
+    title: "Data Cleaning & Pipelines",
+    body: "Turning messy spreadsheets and scattered records into clean, structured datasets you can actually use.",
+  },
+  {
+    title: "Dashboards & Analysis",
+    body: "Impact metrics, program analytics, and clear visualizations to help you understand and report on outcomes.",
+  },
+  {
+    title: "LLM & Agent Tooling",
+    body: "Practical applications of language models: document summarization, chatbots, intake automation, and research assistants.",
+  },
+  {
+    title: "Advisory & Review",
+    body: "A second set of eyes on an existing model, data strategy, or vendor proposal, with honest, jargon-free guidance.",
+  },
+  {
+    title: "Capacity Building",
+    body: "Helping your team get comfortable with the basics of data and ML so the work outlives a single project.",
+  },
+];
+---
+
+<Layout
+  title="Volunteering — Akshath Tiwari"
+  description="Pro bono machine learning and data science help for NGOs and non-profit organizations."
+>
+  <section class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+    <p data-reveal class="font-mono text-sm text-emerald-600 dark:text-emerald-400">Giving back</p>
+    <h1 data-reveal style="--reveal-delay:80ms" class="mt-2 text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-4xl">
+      Volunteering my ML & data science skills
+    </h1>
+    <p data-reveal style="--reveal-delay:160ms" class="mt-5 text-lg leading-relaxed text-neutral-600 dark:text-neutral-400">
+      I'm happy to volunteer my time to help NGOs and non-profit organizations put machine
+      learning and data science to work for their mission. If your organization has data
+      sitting unused, a problem you think ML could help with, or you just want to know whether
+      it's the right tool at all, I'd love to hear from you. This is pro bono: I'm offering it
+      because meaningful work deserves good tools, not because there's a bill attached.
+    </p>
+
+    <h2 data-reveal class="mt-14 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+      Ways I can help
+    </h2>
+    <div class="mt-6 grid gap-5 sm:grid-cols-2">
+      {offerings.map((item, i) => (
+        <div
+          data-reveal
+          style={`--reveal-delay:${(i % 2) * 90}ms`}
+          class="glow-card rounded-lg border border-neutral-200 bg-neutral-50 p-5 dark:border-white/10 dark:bg-white/[0.02]"
+        >
+          <h3 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{item.title}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">{item.body}</p>
+        </div>
+      ))}
+    </div>
+
+    <h2 data-reveal class="mt-14 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+      Who this is for
+    </h2>
+    <p data-reveal style="--reveal-delay:80ms" class="mt-4 text-base leading-relaxed text-neutral-600 dark:text-neutral-400">
+      Registered non-profits, NGOs, community initiatives, research groups, and social-impact
+      projects of any size. You don't need a data team or a technical background. If you can
+      describe the problem you're trying to solve, we can figure out the rest together.
+    </p>
+
+    <div data-reveal class="mt-14 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-8 dark:border-emerald-400/25 dark:bg-emerald-400/[0.06]">
+      <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Reach out</h2>
+      <p class="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
+        Tell me a little about your organization and what you're hoping to do. No commitment,
+        no jargon required. The best first step is just a short email.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-4">
+        <a
+          href={`mailto:${site.email}?subject=Volunteering%20%E2%80%94%20ML%2FData%20Science%20for%20our%20nonprofit`}
+          class="rounded-md bg-emerald-500 px-5 py-2.5 text-sm font-medium text-neutral-950 transition hover:bg-emerald-400"
+        >
+          Email me
+        </a>
+        <a
+          href={site.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-emerald-500/60 hover:text-emerald-600 dark:border-white/15 dark:text-neutral-200 dark:hover:border-emerald-400/50 dark:hover:text-emerald-300"
+        >
+          Connect on LinkedIn
+        </a>
+      </div>
+    </div>
+  </section>
+</Layout>
