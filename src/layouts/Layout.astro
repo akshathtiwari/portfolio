@@ -8,12 +8,37 @@ import { site } from "../lib/site";
 interface Props {
   title?: string;
   description?: string;
+  image?: string;
+  ogType?: "website" | "article";
 }
 
 const {
   title = `${site.name} — ${site.role}`,
   description = site.tagline,
+  image = "/og.png",
+  ogType = "website",
 } = Astro.props;
+
+// Absolute URLs (Astro.site is set in astro.config.mjs).
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL(image, Astro.site).href;
+
+// Only advertise real external profiles as sameAs (skip placeholder roots).
+const sameAs = [site.linkedin, site.github, site.youtube].filter(
+  (u) => u && !/^https?:\/\/(www\.)?(github|youtube)\.com\/?$/.test(u)
+);
+
+const personLd = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: site.name,
+  jobTitle: site.currentRole.title,
+  worksFor: { "@type": "Organization", name: site.currentRole.company },
+  address: { "@type": "PostalAddress", addressLocality: site.location },
+  email: `mailto:${site.email}`,
+  url: Astro.site?.href,
+  sameAs,
+};
 ---
 
 <!doctype html>
@@ -22,8 +47,30 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={site.name} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(personLd)} />
+
     <script is:inline>
       // Set theme before paint to avoid a flash of the wrong theme.
       (() => {

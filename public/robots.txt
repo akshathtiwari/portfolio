@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://portfolio-iota-rust-86wl4latsv.vercel.app/sitemap-index.xml
