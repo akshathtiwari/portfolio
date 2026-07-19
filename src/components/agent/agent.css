@@ -1,0 +1,298 @@
+/* AXON agent layer. Self-contained, prefixed .axon-*. Dark "boot screen"
+   aesthetic with the site's emerald accent. */
+.axon-root {
+  --axon-bg: #0a0b0d;
+  --axon-panel: #14161a;
+  --axon-border: #2a2d33;
+  --axon-text: #e7e7e5;
+  --axon-dim: #9aa0a6;
+  --axon-faint: #8a9098; /* AA contrast on dark panels (>=4.5:1 for small text) */
+  --axon-emerald: #34d399;
+  --axon-emerald-dim: rgba(52, 211, 153, 0.35);
+  --axon-mono: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, monospace;
+}
+
+.axon-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- overlay ---------- */
+.axon-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background:
+    radial-gradient(60% 50% at 50% 38%, rgba(52, 211, 153, 0.06), transparent 70%),
+    var(--axon-bg);
+  color: var(--axon-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  transition: opacity 0.45s ease;
+}
+.axon-overlay--out {
+  opacity: 0;
+  pointer-events: none;
+}
+.axon-stage {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+.axon-stage__entity {
+  filter: drop-shadow(0 0 14px var(--axon-emerald-dim));
+}
+
+.axon-skip {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10000;
+  font-family: var(--axon-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--axon-dim);
+  background: transparent;
+  border: 1px solid var(--axon-border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.axon-skip:hover,
+.axon-skip:focus-visible {
+  color: var(--axon-emerald);
+  border-color: var(--axon-emerald);
+  outline: none;
+}
+.axon-skip--inline {
+  position: static;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+/* ---------- boot ---------- */
+.axon-boot {
+  width: 100%;
+  max-width: 460px;
+}
+.axon-boot__weights {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--axon-border);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.axon-boot__bar {
+  height: 100%;
+  width: 0%;
+  background: var(--axon-emerald);
+  box-shadow: 0 0 10px var(--axon-emerald-dim);
+}
+.axon-boot__log {
+  margin: 0;
+  font-family: var(--axon-mono);
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--axon-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.axon-boot__line {
+  display: block;
+}
+.axon-boot__mark {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--axon-emerald);
+}
+.axon-boot__log--static {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* ---------- greeting ---------- */
+.axon-greeting {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+}
+.axon-greeting__text {
+  font-size: clamp(16px, 2.4vw, 20px);
+  line-height: 1.6;
+  color: var(--axon-text);
+  margin: 0 0 26px;
+}
+.axon-greeting__tok {
+  transition: opacity 0.14s ease;
+}
+.axon-fork {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  transition: opacity 0.4s ease;
+}
+.axon-fork__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 12px;
+  border-radius: 9px;
+  background: var(--axon-panel);
+  border: 1px solid var(--axon-border);
+  color: var(--axon-text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, transform 0.15s, background 0.2s;
+}
+.axon-fork__btn:hover,
+.axon-fork__btn:focus-visible {
+  border-color: var(--axon-emerald);
+  transform: translateY(-2px);
+  outline: none;
+}
+.axon-fork__btn--walkthrough {
+  border-color: var(--axon-emerald-dim);
+}
+.axon-fork__btn:disabled {
+  cursor: default;
+}
+.axon-fork__btn:disabled:hover {
+  transform: none;
+  border-color: var(--axon-border);
+}
+.axon-fork__label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.axon-fork__hint {
+  font-family: var(--axon-mono);
+  font-size: 10.5px;
+  color: var(--axon-faint);
+  line-height: 1.4;
+}
+
+/* ---------- inline (reduced motion) ---------- */
+.axon-root--inline {
+  position: relative;
+  z-index: 30;
+}
+.axon-transcript {
+  background: var(--axon-bg);
+  color: var(--axon-text);
+  border-bottom: 1px solid var(--axon-border);
+  padding: 28px 24px 34px;
+}
+.axon-transcript .axon-greeting {
+  margin: 18px auto 0;
+  text-align: left;
+}
+.axon-transcript .axon-greeting__text {
+  text-align: left;
+}
+.axon-transcript .axon-fork {
+  max-width: 620px;
+}
+
+/* ---------- dock ---------- */
+.axon-dock {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(10, 11, 13, 0.86);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--axon-border);
+  color: var(--axon-text);
+  max-width: min(320px, calc(100vw - 36px));
+}
+.axon-dock__entity {
+  flex: 0 0 auto;
+}
+.axon-dock__body {
+  min-width: 0;
+}
+.axon-dock__line {
+  margin: 0 0 6px;
+  font-family: var(--axon-mono);
+  font-size: 11px;
+  color: var(--axon-dim);
+  line-height: 1.4;
+}
+.axon-dock__replay {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  font-family: var(--axon-mono);
+  font-size: 10.5px;
+  color: var(--axon-faint);
+  background: transparent;
+  border: 1px solid var(--axon-border);
+  border-radius: 5px;
+  padding: 4px 7px;
+  cursor: pointer;
+}
+.axon-dock__replay:hover,
+.axon-dock__replay:focus-visible {
+  color: var(--axon-emerald);
+  border-color: var(--axon-emerald);
+  outline: none;
+}
+
+/* ---------- meter ---------- */
+.axon-meter__label {
+  font-family: var(--axon-mono);
+  font-size: 10px;
+  color: var(--axon-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.axon-meter__num {
+  color: var(--axon-emerald);
+}
+.axon-meter__track {
+  height: 4px;
+  width: 160px;
+  max-width: 100%;
+  border-radius: 2px;
+  background: var(--axon-border);
+  overflow: hidden;
+}
+.axon-meter__fill {
+  height: 100%;
+  background: var(--axon-emerald);
+  box-shadow: 0 0 8px var(--axon-emerald-dim);
+  transition: width 0.4s ease;
+}
+
+@media (max-width: 560px) {
+  .axon-fork {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .axon-greeting__tok,
+  .axon-meter__fill,
+  .axon-fork,
+  .axon-skip {
+    transition: none !important;
+  }
+}

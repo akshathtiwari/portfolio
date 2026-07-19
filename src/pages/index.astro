@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import AgentLanding from "../components/AgentLanding.astro";
 import HeroCanvas from "../components/HeroCanvas.astro";
 import Stats from "../components/Stats.astro";
 import { getCollection } from "astro:content";
@@ -60,6 +61,8 @@ const skillGroups = [
 ---
 
 <Layout>
+  <AgentLanding />
+  <div class="agent-gate" id="main-content">
   <section class="relative overflow-hidden border-b border-neutral-200 dark:border-white/10">
     <HeroCanvas />
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/70 to-white dark:from-neutral-950/40 dark:via-neutral-950/70 dark:to-neutral-950"></div>
@@ -143,6 +146,7 @@ const skillGroups = [
       ))}
     </div>
   </section>
+  </div>
 </Layout>
 
 <script define:vars={{ roles }}>

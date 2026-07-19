@@ -1,0 +1,37 @@
+---
+// Host for the AXON landing experience. The island is client:only so no-JS
+// visitors get the plain portfolio (N4). The inline gate hides the static
+// content only while the boot overlay is up, and only when JS is present,
+// not reduced-motion, and the visitor has not chosen a mode before (R6/R7).
+import AgentApp from "./agent/AgentApp.tsx";
+---
+
+<script is:inline>
+  (() => {
+    try {
+      var root = document.documentElement;
+      var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var chosen = "unset";
+      try {
+        var raw = localStorage.getItem("axon.v1");
+        if (raw) chosen = (JSON.parse(raw).mode) || "unset";
+      } catch (e) {}
+      // Only gate the content when the full boot overlay will actually run.
+      if (!reduced && chosen === "unset") {
+        root.setAttribute("data-agent-boot", "");
+        // Fail-open: never trap content if the island fails to mount.
+        window.setTimeout(function () {
+          root.removeAttribute("data-agent-boot");
+        }, 6000);
+      }
+    } catch (e) {}
+  })();
+</script>
+
+<style is:global>
+  html[data-agent-boot] .agent-gate {
+    visibility: hidden;
+  }
+</style>
+
+<AgentApp client:only="react" />
