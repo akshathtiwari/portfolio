@@ -75,13 +75,19 @@ const personLd = {
     <ClientRouter />
 
     <script is:inline>
-      // Set theme before paint to avoid a flash of the wrong theme.
+      // Set theme before paint to avoid a flash of the wrong theme. Re-apply
+      // after every View Transition swap, since ClientRouter resets <html>'s
+      // class to the server-rendered value (which has no `.dark`).
       (() => {
-        const stored = localStorage.getItem("theme");
-        const dark = stored
-          ? stored === "dark"
-          : window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.classList.toggle("dark", dark);
+        const applyTheme = () => {
+          const stored = localStorage.getItem("theme");
+          const dark = stored
+            ? stored === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.classList.toggle("dark", dark);
+        };
+        applyTheme();
+        document.addEventListener("astro:after-swap", applyTheme);
       })();
     </script>
   </head>
