@@ -33,9 +33,22 @@ function load(): AgentState {
   return { ...DEFAULTS };
 }
 
-export const agent = map<AgentState>(load());
+// In the browser, cache the store on globalThis so every island shares ONE
+// instance even if the bundler duplicates this module into more than one island
+// chunk. On the server we always create a fresh instance: caching there would
+// leak one visitor's state across requests if the site ever moves off static
+// output (it is static today, so this is defensive).
+type AgentMap = ReturnType<typeof map<AgentState>>;
+const isBrowser = typeof window !== "undefined";
+const g = globalThis as unknown as { __axonAgent?: AgentMap; __axonWired?: boolean };
 
-if (typeof window !== "undefined") {
+export const agent: AgentMap = isBrowser
+  ? (g.__axonAgent ?? (g.__axonAgent = map<AgentState>(load())))
+  : map<AgentState>(load());
+
+if (typeof window !== "undefined" && !g.__axonWired) {
+  g.__axonWired = true;
+
   agent.subscribe((v) => {
     try {
       localStorage.setItem(KEY, JSON.stringify(v));

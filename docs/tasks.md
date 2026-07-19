@@ -34,10 +34,40 @@ requirement(s) it satisfies. Phase 1 is the current live target.
 - [x] G2 UI-testing agent passes (address all findings). (DoD 4)
       GO: 10/11 checks PASS; reduced-motion not live-emulatable in headless pane
       (verified in source). No blocking defects.
-- [~] G3 Commit + push to main; Vercel deploy; verify live 200 + expected content. (DoD 5)
+- [x] G3 Commit + push to main; Vercel deploy; verify live 200 + expected content. (DoD 5)
+      Live: boot->greeting->fork verified on production, focus trap + dock + meter
+      working, console clean, SSR has no overlay (SEO/no-JS intact), blog post 200.
+      Commit 155760d.
 
-## Later phases (queued, not this increment)
+## Phase 2 — Walkthrough stages (current live target)
 
-- [ ] T2.x Model Card, Training Run (loss curve), Eval Suite. (R10, R12, R13)
+Stage reveals use IntersectionObserver + CSS transitions (robust, reduced-motion
+friendly, verifiable). Cross-island state via the shared nanostore drives dock
+narration (R10) and the "attending" entity state.
+
+- [x] T2.1 `src/data/journey.ts` training-run checkpoints (roles, periods, loss, caps).
+- [x] T2.2 `src/data/evals.ts` per-project eval metadata (metric label + qualitative value).
+- [x] T2.3 `useInView.ts` IntersectionObserver hook (threshold 0.12 for tall stages).
+- [x] T2.4 `ModelCard.tsx` About-as-model-card stage. (R10)
+- [x] T2.5 `TrainingRun.tsx` Experience as a drawn loss curve + checkpoints + capability chips. (R12)
+- [x] T2.6 `EvalSuite.tsx` Projects as an eval board with animated bars + run-all. (R13)
+- [x] T2.7 `Walkthrough.tsx` island composes stages; on stage enter -> setStage + addTokens.
+- [x] T2.8 Dock narrates active stage (decoded) + entity shows 'attending'. (R10, R8)
+- [x] T2.9 `Walkthrough.astro` host passes projects; wire into index.astro (replaced Featured teaser).
+- [x] T2.10 Self-review + build clean. Verified: store singleton shared cross-island, dock
+      narration + meter on stage change, reveal end-states correct (opacity/loss-draw/bars).
+      NOTE: live scroll/IO/transitions NOT observable in the headless pane (frozen anim clock,
+      IO does not fire) - same limitation as screenshots. Real-browser visual check pending.
+
+## Phase 2 gates
+
+- [x] G4 Senior-frontend-dev review passes.
+      PASS after fixing 1 Major (walk-js fail-open) + 2 Minors + 2 nits.
+- [x] G5 UI-testing agent passes.
+      GO: checks 1-4, 6, 7, 8 PASS; 5 (fail-open) NOT-TESTABLE in pane (verified in source).
+- [~] G6 Commit + deploy; verify live.
+
+## Later phases (queued)
+
 - [ ] T3.x Retrieval surface, Volunteering, FitScore finale, Terminal. (R11, R14)
 - [ ] T4.x Optional R3F entity, sound (skipped), full a11y/perf audit.

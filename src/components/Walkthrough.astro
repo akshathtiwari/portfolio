@@ -1,0 +1,25 @@
+---
+// Host for the walkthrough stages. Passes real project data to the island.
+// The inline `walk-js` class (set before the stages paint) gates the reveal
+// animations so no-JS visitors and crawlers see all content, fully visible.
+import Walkthrough from "./walk/Walkthrough.tsx";
+import { getCollection } from "astro:content";
+
+const projects = (await getCollection("projects"))
+  .sort((a, b) => a.data.order - b.data.order)
+  .map((p) => ({ id: p.id, title: p.data.title, theme: p.data.theme }));
+---
+
+<script is:inline>
+  // Add the reveal gate immediately (no flash), but fail open: if the island
+  // never signals hydration, drop the gate so the content shows regardless.
+  (function () {
+    var root = document.documentElement;
+    root.classList.add("walk-js");
+    window.setTimeout(function () {
+      if (!root.classList.contains("walk-hydrated")) root.classList.remove("walk-js");
+    }, 5000);
+  })();
+</script>
+
+<Walkthrough projects={projects} client:load />

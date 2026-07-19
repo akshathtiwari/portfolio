@@ -1,0 +1,363 @@
+/* Walkthrough stages. Part of the main content, so it respects the site's
+   light/dark theme (unlike the dark boot overlay). Reveals are gated on the
+   `walk-js` class: without JS everything is visible (SEO / no-JS safe); with JS
+   the stages animate in on scroll. */
+.walk {
+  --w-text: #171717;
+  --w-dim: #525252;
+  --w-faint: #6b7280;
+  --w-border: #e5e5e5;
+  --w-panel: #fafafa;
+  --w-accent: #059669;
+  --w-accent-soft: rgba(5, 150, 105, 0.12);
+  --w-track: #e5e5e5;
+  --w-mono: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, monospace;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+html.dark .walk {
+  --w-text: #fafafa;
+  --w-dim: #a3a3a3;
+  --w-faint: #8a9099;
+  --w-border: rgba(255, 255, 255, 0.1);
+  --w-panel: rgba(255, 255, 255, 0.02);
+  --w-accent: #34d399;
+  --w-accent-soft: rgba(52, 211, 153, 0.14);
+  --w-track: rgba(255, 255, 255, 0.1);
+}
+
+.walk-stage {
+  padding: 4.5rem 0;
+  border-top: 1px solid var(--w-border);
+}
+.walk-stage:first-child {
+  border-top: none;
+}
+
+/* reveal (gated on walk-js so no-JS shows everything) */
+html.walk-js .walk-stage {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+html.walk-js .walk-stage.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+.walk-eyebrow {
+  font-family: var(--w-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--w-accent);
+  margin: 0 0 0.75rem;
+}
+.walk-h2 {
+  font-size: clamp(1.5rem, 3.4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--w-text);
+  margin: 0 0 0.6rem;
+}
+.walk-sub {
+  color: var(--w-dim);
+  max-width: 54ch;
+  margin: 0 0 2rem;
+  line-height: 1.65;
+}
+
+.walk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.walk-chip {
+  font-family: var(--w-mono);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--w-border);
+  color: var(--w-dim);
+  background: var(--w-accent-soft);
+}
+
+/* ---------- model card ---------- */
+.walk-card__grid {
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.walk-card__row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 0.5rem 1.2rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--w-border);
+}
+html.walk-js .walk-stage .walk-card__row {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+html.walk-js .walk-stage.in-view .walk-card__row {
+  opacity: 1;
+  transform: none;
+}
+.walk-card__k {
+  font-family: var(--w-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--w-accent);
+  padding-top: 0.1rem;
+}
+.walk-card__v {
+  margin: 0;
+  color: var(--w-text);
+  line-height: 1.55;
+}
+
+/* ---------- training run ---------- */
+.walk-run__chart {
+  position: relative;
+  margin-bottom: 2rem;
+}
+.walk-run__svg {
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+}
+.walk-run__axis {
+  stroke: var(--w-border);
+  stroke-width: 0.3;
+}
+.walk-run__line {
+  fill: none;
+  stroke: var(--w-accent);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+html.walk-js .walk-run__line {
+  /* Comfortably above the polyline's rendered pixel length (chart caps at
+     ~1024px wide) so it starts fully undrawn even on wide viewports. */
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  transition: stroke-dashoffset 1.6s ease 0.2s;
+}
+html.walk-js .walk-run.in-view .walk-run__line {
+  stroke-dashoffset: 0;
+}
+.walk-run__dot {
+  fill: var(--w-accent);
+}
+html.walk-js .walk-run__dot {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+html.walk-js .walk-run.in-view .walk-run__dot {
+  opacity: 1;
+}
+.walk-run__axislabels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--w-mono);
+  font-size: 0.66rem;
+  color: var(--w-faint);
+  margin-top: 0.3rem;
+}
+.walk-run__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.walk-run__cp {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--w-border);
+  border-radius: 0.6rem;
+  background: var(--w-panel);
+}
+html.walk-js .walk-stage .walk-run__cp {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+html.walk-js .walk-stage.in-view .walk-run__cp {
+  opacity: 1;
+  transform: none;
+}
+.walk-run__cphead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.walk-run__phase {
+  font-family: var(--w-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--w-accent);
+}
+.walk-run__period {
+  font-family: var(--w-mono);
+  font-size: 0.7rem;
+  color: var(--w-faint);
+}
+.walk-run__role {
+  margin: 0.35rem 0 0.25rem;
+  font-weight: 600;
+  color: var(--w-text);
+}
+.walk-run__org {
+  font-weight: 400;
+  color: var(--w-dim);
+}
+.walk-run__note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--w-dim);
+  line-height: 1.55;
+}
+
+/* ---------- eval suite ---------- */
+.walk-evals__actions {
+  margin-bottom: 1.2rem;
+}
+.walk-btn {
+  font-family: var(--w-mono);
+  font-size: 0.78rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--w-border);
+  background: transparent;
+  color: var(--w-text);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.walk-btn:hover,
+.walk-btn:focus-visible {
+  border-color: var(--w-accent);
+  color: var(--w-accent);
+  outline: none;
+}
+.walk-evals__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.walk-eval {
+  border: 1px solid var(--w-border);
+  border-radius: 0.6rem;
+  background: var(--w-panel);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.walk-eval:hover {
+  border-color: var(--w-accent);
+  transform: translateY(-2px);
+}
+html.walk-js .walk-stage .walk-eval {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+html.walk-js .walk-stage.in-view .walk-eval {
+  opacity: 1;
+  transform: none;
+}
+.walk-eval__link {
+  display: block;
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+.walk-eval__theme {
+  font-family: var(--w-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--w-accent);
+  margin: 0 0 0.4rem;
+}
+.walk-eval__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--w-text);
+  margin: 0 0 0.7rem;
+  line-height: 1.35;
+}
+.walk-eval__metricrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--w-mono);
+  font-size: 0.7rem;
+  margin-bottom: 0.4rem;
+}
+.walk-eval__metric {
+  color: var(--w-faint);
+}
+.walk-eval__value {
+  color: var(--w-dim);
+  text-align: right;
+}
+.walk-eval__track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--w-track);
+  overflow: hidden;
+}
+.walk-eval__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--w-accent);
+  transform-origin: left;
+}
+html.walk-js .walk-eval__fill {
+  transform: scaleX(0);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+html.walk-js .walk-eval__fill.on {
+  transform: scaleX(1);
+}
+
+@media (max-width: 560px) {
+  .walk-card__row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.walk-js .walk-stage,
+  html.walk-js .walk-stage.in-view,
+  html.walk-js .walk-card__row,
+  html.walk-js .walk-run__cp,
+  html.walk-js .walk-eval {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  html.walk-js .walk-run__line {
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+  }
+  html.walk-js .walk-run__dot {
+    opacity: 1 !important;
+  }
+  html.walk-js .walk-eval__fill {
+    transform: scaleX(1) !important;
+    transition: none !important;
+  }
+}

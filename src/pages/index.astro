@@ -1,16 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import AgentLanding from "../components/AgentLanding.astro";
+import Walkthrough from "../components/Walkthrough.astro";
 import HeroCanvas from "../components/HeroCanvas.astro";
 import Stats from "../components/Stats.astro";
-import { getCollection } from "astro:content";
 import { site } from "../lib/site";
-
-const allProjects = await getCollection("projects");
-const featured = allProjects
-  .filter((p) => p.data.featured)
-  .sort((a, b) => a.data.order - b.data.order)
-  .slice(0, 3);
 
 const roles = [
   "fine-tune small LLMs",
@@ -98,32 +92,9 @@ const skillGroups = [
     </div>
   </section>
 
-  <Stats />
+  <Walkthrough />
 
-  <section class="mx-auto max-w-5xl px-6 py-14">
-    <div data-reveal class="flex items-baseline justify-between">
-      <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Featured Work</h3>
-      <a href="/projects" class="text-sm text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300">All projects &rarr;</a>
-    </div>
-    <div class="mt-6 grid gap-5 sm:grid-cols-3">
-      {featured.map((project, i) => (
-        <a
-          href={`/projects/${project.id}`}
-          data-reveal
-          style={`--reveal-delay:${i * 100}ms`}
-          class="glow-card group rounded-lg border border-neutral-200 bg-neutral-50 p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-500/40 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-emerald-400/40"
-        >
-          <p class="font-mono text-xs uppercase tracking-wide text-emerald-600/80 dark:text-emerald-400/80">{project.data.theme}</p>
-          <h4 class="mt-2 text-sm font-semibold text-neutral-900 group-hover:text-emerald-600 dark:text-neutral-100 dark:group-hover:text-emerald-300">
-            {project.data.title}
-          </h4>
-          <p class="mt-2 text-sm leading-relaxed text-neutral-600 line-clamp-3 dark:text-neutral-500">
-            {project.data.summary}
-          </p>
-        </a>
-      ))}
-    </div>
-  </section>
+  <Stats />
 
   <section class="mx-auto max-w-5xl px-6 py-14">
     <h3 data-reveal class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Core Skills</h3>

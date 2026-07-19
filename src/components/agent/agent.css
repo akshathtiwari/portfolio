@@ -221,7 +221,11 @@
   backdrop-filter: blur(8px);
   border: 1px solid var(--axon-border);
   color: var(--axon-text);
-  max-width: min(320px, calc(100vw - 36px));
+  max-width: min(400px, calc(100vw - 36px));
+}
+.axon-dock__line {
+  max-height: 4.5rem;
+  overflow: hidden;
 }
 .axon-dock__entity {
   flex: 0 0 auto;
