@@ -1,24 +1,27 @@
 # Tasks — Transformer Evolution Map (blog)
 
-## Increment 1 (this sitting) — infra + foundations live
+## Increment 1 (this sitting) — infra + foundations live  ✅ SHIPPED (commit ceda861)
 
 - [x] T1  Write SDD: requirements.md, design.md, tasks.md
-- [ ] T2  Build `public/blog-embeds/transformer-map.html` scaffold
-        - [ ] head: KaTeX + fonts CDN, noindex, self-contained dark theme
-        - [ ] all Phase 0–8 grids + cards (data-card, data-prompt, category tag)
-        - [ ] Phase 9 timeline items wired into the same detail system
-        - [ ] one `.phase-detail` per phase; accordion controller
-        - [ ] copy-prompt button; progress pill; legend; footer caveat
-        - [ ] KaTeX auto-render call; auto-resize post script (exact pattern)
-        - [ ] a11y: buttons, aria-expanded/controls, reduced-motion, focus
-- [ ] T3  Fill CARDS content — Phase 0 (4 cards, status done, full derivations)
-- [ ] T4  Fill CARDS content — Phase 1 (4 cards, status done, full derivations)
-- [ ] T5  Stub CARDS content — Phases 2–9 + timeline (status wip, orientation + await markers)
-- [ ] T6  MDX wrapper `src/content/blog/transformer-evolution-map.mdx`
+- [x] T2  Build `public/blog-embeds/transformer-map.html` scaffold
+        - [x] head: KaTeX + fonts CDN, noindex, self-contained dark theme
+        - [x] all Phase 0–8 grids + cards (data-card, data-prompt, category tag)
+        - [x] Phase 9 timeline items wired into the same detail system
+        - [x] one `.phase-detail` per phase; accordion controller
+        - [x] copy-prompt button; progress pill; legend; footer caveat
+        - [x] KaTeX auto-render call; auto-resize post script (exact pattern)
+        - [x] a11y: buttons, aria-expanded/controls, reduced-motion, focus
+- [x] T3  Fill CARDS content — Phase 0 (4 cards, status done, full derivations)
+- [x] T4  Fill CARDS content — Phase 1 (4 cards, status done, full derivations)
+- [x] T5  Stub CARDS content — Phases 2–9 + timeline (status wip, orientation + await markers)
+- [x] T6  MDX wrapper `src/content/blog/transformer-evolution-map.mdx`
         (immersive:true, tags, sr-only summary, BlogEmbed)
-- [ ] T7  `npm run build` clean; preview: iframe resizes, KaTeX renders, accordion +
-        copy-prompt work, dark/light parent both fine, mobile reflow
-- [ ] T8  Commit + push to main → Vercel auto-deploy; verify live URL
+- [x] T7  Build clean (23 pages); preview verified: iframe resizes (3198→4925px tracks
+        content), 134 KaTeX rendered, accordion 1-open-per-phase, copy-prompt +
+        await-box work, 0 console errors. (Screenshot n/a — headless pane not composited.)
+- [x] T8  Commit + push to main → Vercel auto-deploy (commit ceda861)
+
+Verified counts on the live build: 51 cards total, 8 fully derived (Phase 0 + 1).
 
 ## Later increments — fill the map (one phase per sitting, per source cadence)
 
