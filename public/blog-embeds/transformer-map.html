@@ -296,15 +296,15 @@ footer.src b{color:var(--dim);}
     <div class="ph-head"><span class="ph-num">Phase 9</span><h3 class="ph-title">Model evolution timeline</h3></div>
     <p class="ph-sub">Tap any model for a teardown and what it changed. Each name decomposes into the phases above.</p>
     <div class="tl">
-      <button class="tl-item" data-card="gpt2-gpt3" data-status="wip" data-prompt="Full architecture teardown of GPT-2 (2019) and its role as the decoder-only template, plus what GPT-3 (2020) changed at 175B and what in-context learning revealed."><span class="tl-dot"></span><span class="tl-yr">2019–20</span><span class="tl-name">GPT-2 → GPT-3</span><span class="tl-inn">Decoder-only template, scale, in-context learning</span></button>
-      <button class="tl-item" data-card="chinchilla-llama" data-status="wip" data-prompt="Teardown of Chinchilla (2022) and the compute-optimal rethink, then LLaMA 1 (2023): RoPE + RMSNorm + SwiGLU as the new standard recipe, and why open weights changed everything."><span class="tl-dot"></span><span class="tl-yr">2022–23</span><span class="tl-name">Chinchilla → LLaMA</span><span class="tl-inn">Compute-optimal training; RoPE + RMSNorm + SwiGLU standard</span></button>
-      <button class="tl-item" data-card="mistral-mixtral" data-status="wip" data-prompt="Teardown of Mistral 7B (sliding window attention, GQA) and Mixtral 8x7B (open sparse MoE) — what each changed and why they punched above their size."><span class="tl-dot"></span><span class="tl-yr">2023</span><span class="tl-name">Mistral → Mixtral</span><span class="tl-inn">Sliding window + GQA; open MoE goes mainstream</span></button>
-      <button class="tl-item" data-card="deepseek-v2" data-status="wip" data-prompt="Teardown of DeepSeek-V2: MLA latent KV compression and DeepSeekMoE fine-grained experts — the two ideas that defined the current efficient-frontier recipe."><span class="tl-dot"></span><span class="tl-yr">2024</span><span class="tl-name">DeepSeek-V2</span><span class="tl-inn">MLA + fine-grained MoE with shared experts</span></button>
-      <button class="tl-item" data-card="deepseek-v3-r1" data-status="wip" data-prompt="Teardown of DeepSeek-V3 and R1: 671B MoE, aux-loss-free balancing, MTP, FP8 training, then R1s GRPO reasoning recipe and the distillation wave."><span class="tl-dot"></span><span class="tl-yr">2024–25</span><span class="tl-name">DeepSeek-V3 → R1</span><span class="tl-inn">Aux-loss-free MoE, MTP, FP8; GRPO reasoning</span></button>
-      <button class="tl-item" data-card="qwen3" data-status="wip" data-prompt="Teardown of Qwen3 including the 4B I fine-tune at work: architecture, hybrid thinking modes, GQA config, and how the dense + MoE family was trained and distilled."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Qwen3</span><span class="tl-inn">Hybrid thinking modes, strong small dense models</span></button>
-      <button class="tl-item" data-card="kimi-k2" data-status="wip" data-prompt="Teardown of Kimi K2: 1T-param MoE (8 of 384 experts), MLA, MuonClip optimizer with QK-clip for stability, agentic training focus — and its open-weights significance."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Kimi K2</span><span class="tl-inn">1T open MoE, MuonClip, agentic focus</span></button>
-      <button class="tl-item" data-card="kimi-linear" data-status="wip" data-prompt="Teardown of Kimi Linear (late 2025): the KDA hybrid linear attention architecture that beat full attention under fair comparison — the bridge paper to K3."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Kimi Linear</span><span class="tl-inn">KDA proves hybrid linear beats full attention</span></button>
-      <button class="tl-item" data-card="kimi-k3" data-status="wip" data-prompt="Full teardown of Kimi K3 (July 2026) with everything publicly known: 2.8T params, KDA hybrid linear attention, Attention Residuals across depth, Stable LatentMoE with 16 of 896 experts, Quantile Balancing, Per-Head Muon, SiTU activation, Gated MLA, MXFP4/MXFP8 QAT, native vision, 1M context — and how every one of these traces back to a concept earlier in this roadmap."><span class="tl-dot" style="background:var(--accent)"></span><span class="tl-yr">2026</span><span class="tl-name">Kimi K3</span><span class="tl-inn">2.8T, KDA + AttnRes, Stable LatentMoE 16/896, 1M context, MXFP4</span></button>
+      <button class="tl-item" data-card="gpt2-gpt3" data-status="done" data-prompt="Full architecture teardown of GPT-2 (2019) and its role as the decoder-only template, plus what GPT-3 (2020) changed at 175B and what in-context learning revealed."><span class="tl-dot"></span><span class="tl-yr">2019–20</span><span class="tl-name">GPT-2 → GPT-3</span><span class="tl-inn">Decoder-only template, scale, in-context learning</span></button>
+      <button class="tl-item" data-card="chinchilla-llama" data-status="done" data-prompt="Teardown of Chinchilla (2022) and the compute-optimal rethink, then LLaMA 1 (2023): RoPE + RMSNorm + SwiGLU as the new standard recipe, and why open weights changed everything."><span class="tl-dot"></span><span class="tl-yr">2022–23</span><span class="tl-name">Chinchilla → LLaMA</span><span class="tl-inn">Compute-optimal training; RoPE + RMSNorm + SwiGLU standard</span></button>
+      <button class="tl-item" data-card="mistral-mixtral" data-status="done" data-prompt="Teardown of Mistral 7B (sliding window attention, GQA) and Mixtral 8x7B (open sparse MoE) — what each changed and why they punched above their size."><span class="tl-dot"></span><span class="tl-yr">2023</span><span class="tl-name">Mistral → Mixtral</span><span class="tl-inn">Sliding window + GQA; open MoE goes mainstream</span></button>
+      <button class="tl-item" data-card="deepseek-v2" data-status="done" data-prompt="Teardown of DeepSeek-V2: MLA latent KV compression and DeepSeekMoE fine-grained experts — the two ideas that defined the current efficient-frontier recipe."><span class="tl-dot"></span><span class="tl-yr">2024</span><span class="tl-name">DeepSeek-V2</span><span class="tl-inn">MLA + fine-grained MoE with shared experts</span></button>
+      <button class="tl-item" data-card="deepseek-v3-r1" data-status="done" data-prompt="Teardown of DeepSeek-V3 and R1: 671B MoE, aux-loss-free balancing, MTP, FP8 training, then R1s GRPO reasoning recipe and the distillation wave."><span class="tl-dot"></span><span class="tl-yr">2024–25</span><span class="tl-name">DeepSeek-V3 → R1</span><span class="tl-inn">Aux-loss-free MoE, MTP, FP8; GRPO reasoning</span></button>
+      <button class="tl-item" data-card="qwen3" data-status="done" data-prompt="Teardown of Qwen3 including the 4B I fine-tune at work: architecture, hybrid thinking modes, GQA config, and how the dense + MoE family was trained and distilled."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Qwen3</span><span class="tl-inn">Hybrid thinking modes, strong small dense models</span></button>
+      <button class="tl-item" data-card="kimi-k2" data-status="done" data-prompt="Teardown of Kimi K2: 1T-param MoE (8 of 384 experts), MLA, MuonClip optimizer with QK-clip for stability, agentic training focus — and its open-weights significance."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Kimi K2</span><span class="tl-inn">1T open MoE, MuonClip, agentic focus</span></button>
+      <button class="tl-item" data-card="kimi-linear" data-status="done" data-prompt="Teardown of Kimi Linear (late 2025): the KDA hybrid linear attention architecture that beat full attention under fair comparison — the bridge paper to K3."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Kimi Linear</span><span class="tl-inn">KDA proves hybrid linear beats full attention</span></button>
+      <button class="tl-item" data-card="kimi-k3" data-status="done" data-prompt="Full teardown of Kimi K3 (July 2026) with everything publicly known: 2.8T params, KDA hybrid linear attention, Attention Residuals across depth, Stable LatentMoE with 16 of 896 experts, Quantile Balancing, Per-Head Muon, SiTU activation, Gated MLA, MXFP4/MXFP8 QAT, native vision, 1M context — and how every one of these traces back to a concept earlier in this roadmap."><span class="tl-dot" style="background:var(--accent)"></span><span class="tl-yr">2026</span><span class="tl-name">Kimi K3</span><span class="tl-inn">2.8T, KDA + AttnRes, Stable LatentMoE 16/896, 1M context, MXFP4</span></button>
     </div>
     <div class="phase-detail" id="detail-p9" role="region" tabindex="-1" hidden></div>
   </section>
@@ -1043,6 +1043,65 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
       <li><strong>Hybrid linear attention changes the memory equation:</strong> at 1M-token context a full-attention KV cache would be prohibitive, but KDA layers (Phase&nbsp;4) carry only a fixed-size state — so the bulk of the model streams no cache, and million-token serving becomes feasible.</li>
     </ul>
     <p class="next"><b>Where this goes.</b> Every knob here — paged KV, disaggregation, spec decoding, wide-EP — is a lever on the same quantities derived earlier. Phase&nbsp;9 reassembles them into the models themselves.</p>
+  </div>
+
+  <div class="derivation" data-dv="gpt2-gpt3">
+    <p><strong>GPT-2 (2019)</strong> is the decoder-only template the whole map is built on: pre-LN blocks, learned absolute positions, GELU FFN, byte-level BPE, tied embeddings (Phase&nbsp;2). Its claim to fame was simply that one autoregressive next-token model scales gracefully.</p>
+    <p><strong>GPT-3 (2020)</strong> ran the identical recipe at 175B and surfaced <strong>in-context learning</strong>: the model performs new tasks from a few prompt examples with no weight updates. Same architecture, more scale — and an emergent capability nobody trained for directly. This set the field's thesis: scale the template.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;2 (GPT-2 anatomy), Phase&nbsp;6 (scaling). Everything after is a diff against this skeleton.</p>
+  </div>
+
+  <div class="derivation" data-dv="chinchilla-llama">
+    <p><strong>Chinchilla (2022)</strong> recomputed the compute-optimal frontier (Phase&nbsp;6): ~20 tokens per parameter, and most models to date were badly under-trained. It changed how everyone spends compute.</p>
+    <p><strong>LLaMA (2023)</strong> crystallized the modern recipe still in use — <strong>RoPE</strong> (Phase&nbsp;3) + <strong>RMSNorm</strong> (Phase&nbsp;2) + <strong>SwiGLU</strong> (Phase&nbsp;2) — and deliberately over-trained smaller models for cheap deployment. Its open weights reset the baseline and seeded the entire open ecosystem that follows.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;2 (norm, FFN), Phase&nbsp;3 (RoPE), Phase&nbsp;6 (scaling). The recipe every later open model starts from.</p>
+  </div>
+
+  <div class="derivation" data-dv="mistral-mixtral">
+    <p><strong>Mistral 7B (2023)</strong> paired <strong>sliding-window attention</strong> with <strong>GQA</strong> (both Phase&nbsp;4) to punch far above its size with a bounded KV cache.</p>
+    <p><strong>Mixtral 8×7B</strong> brought open <strong>sparse MoE</strong> (Phase&nbsp;5) into the mainstream: 2-of-8 routing, ≈13B active of ≈47B total, matching a much larger dense model at a fraction of the active compute. This is the moment MoE stopped being exotic.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;4 (SWA, GQA), Phase&nbsp;5 (MoE fundamentals).</p>
+  </div>
+
+  <div class="derivation" data-dv="deepseek-v2">
+    <p><strong>DeepSeek-V2 (2024)</strong> introduced the two ideas that define today's efficient frontier: <strong>MLA</strong> latent-KV compression (Phase&nbsp;4) and <strong>DeepSeekMoE</strong> fine-grained experts with always-on shared experts (Phase&nbsp;5). Cheaper cache and cheaper compute in one architecture — the template DeepSeek-V3, Kimi K2, and K3 all inherit.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;4 (MLA), Phase&nbsp;5 (fine-grained + shared experts).</p>
+  </div>
+
+  <div class="derivation" data-dv="deepseek-v3-r1">
+    <p><strong>DeepSeek-V3 (2024)</strong> scaled the V2 recipe to a 671B MoE and added <strong>auxiliary-loss-free</strong> balancing (Phase&nbsp;5), <strong>MTP</strong> (Phase&nbsp;8), and <strong>FP8</strong> training (Phase&nbsp;6) — a masterclass in stacking efficiency tricks.</p>
+    <p><strong>R1 (2025)</strong> applied <strong>GRPO</strong> reasoning RL (Phase&nbsp;7) on that base; R1-Zero showed long chain-of-thought <em>emerging</em> from pure RL, and R1's traces distilled reasoning into small models across the ecosystem. This is where the post-training half visibly stacks onto the architecture half.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;5 (loss-free balancing), Phase&nbsp;6 (FP8), Phase&nbsp;7 (GRPO), Phase&nbsp;8 (MTP).</p>
+  </div>
+
+  <div class="derivation" data-dv="qwen3">
+    <p><strong>Qwen3 (2025)</strong> is a dense + MoE family with <strong>hybrid thinking modes</strong> (switchable reasoning), GQA attention, and unusually strong <em>small dense</em> models — trained and distilled from larger siblings (Phase&nbsp;7). It includes the 4B checkpoint fine-tuned at Phenom, which makes it the map's personal anchor: the daily-driver model whose every component — GQA, RoPE, RMSNorm, SwiGLU, SFT/RL — is a card above.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;2–4 (the standard stack), Phase&nbsp;7 (distillation, thinking modes).</p>
+  </div>
+
+  <div class="derivation" data-dv="kimi-k2">
+    <p><strong>Kimi K2 (2025)</strong> is a 1T-parameter open MoE (8-of-384, Phase&nbsp;5) with <strong>MLA</strong> (Phase&nbsp;4), the <strong>MuonClip</strong> optimizer with QK-clip for stability (Phase&nbsp;6), and an explicit agentic training focus (Phase&nbsp;7). It was the first to run Muon at trillion scale, and its open weights made it a landmark — the direct predecessor to K3.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;4 (MLA), Phase&nbsp;5 (MoE), Phase&nbsp;6 (MuonClip), Phase&nbsp;7 (agentic).</p>
+  </div>
+
+  <div class="derivation" data-dv="kimi-linear">
+    <p><strong>Kimi Linear (late 2025)</strong> is the bridge paper to K3. It shows the <strong>KDA</strong> hybrid linear-attention architecture (Phase&nbsp;4) <em>beating</em> full attention under a fair, controlled comparison — the empirical result that justified putting KDA at the center of a frontier model. It is the point where the entire linear-attention lineage (linear attention → gating → Mamba → DeltaNet → Gated DeltaNet → KDA) finally pays off against softmax attention.</p>
+    <p class="next"><b>Maps to.</b> Phase&nbsp;4 (linear-attention lineage, KDA).</p>
+  </div>
+
+  <div class="derivation" data-dv="kimi-k3">
+    <p><strong>Kimi K3 (July 2026)</strong> is the payoff lap — 2.8T parameters where <em>every</em> headline decomposes into a card you have already derived:</p>
+    <ul>
+      <li><strong>KDA hybrid linear attention</strong> → Phase&nbsp;4 (linear lineage, KDA, the 3:1 hybrid).</li>
+      <li><strong>Attention Residuals across depth</strong> → Phase&nbsp;2 (residual stream).</li>
+      <li><strong>Stable LatentMoE, 16-of-896</strong> + <strong>Quantile Balancing</strong> → Phase&nbsp;5.</li>
+      <li><strong>Per-Head Muon</strong> and <strong>MXFP4/MXFP8 QAT</strong> → Phase&nbsp;6 (optimizers, precision).</li>
+      <li><strong>SiTU activation</strong> → Phase&nbsp;2 (FFN); <strong>Gated MLA</strong> → Phase&nbsp;4.</li>
+      <li><strong>1M context</strong> → Phase&nbsp;3 (long-context) made affordable by Phase&nbsp;4 (KDA) and Phase&nbsp;8 (serving).</li>
+    </ul>
+    <p>Native vision and the agentic post-training (Phase&nbsp;7) sit on top. Nothing here is arbitrary — it is the whole map, assembled.</p>
+    <div class="awaitbox">The full internals — Stable LatentMoE especially — are built here on what is <span class="await">public as of July&nbsp;2026</span>. The complete <strong>Kimi K3 technical report and weights land July&nbsp;27, 2026</strong>, and these cards will be deepened the moment it drops.</div>
+    <p class="next"><b>The map, closed.</b> Start at next-token prediction, end at a 2.8T-parameter agentic multimodal MoE — one strictly cumulative path, every step derivable from the last.</p>
   </div>
 
 </div>
