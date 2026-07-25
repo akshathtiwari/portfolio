@@ -65,9 +65,31 @@ narration (R10) and the "attending" entity state.
       PASS after fixing 1 Major (walk-js fail-open) + 2 Minors + 2 nits.
 - [x] G5 UI-testing agent passes.
       GO: checks 1-4, 6, 7, 8 PASS; 5 (fail-open) NOT-TESTABLE in pane (verified in source).
-- [~] G6 Commit + deploy; verify live.
+- [x] G6 Commit + deploy; verify live. Commit 3259ad4. Live: SSR content + no baked gate,
+      store-driven dock narration + meter working on production, dark persists, console clean,
+      /projects and blog post still 200.
 
-## Later phases (queued)
+## Phase 3 — Retrieval, Volunteering, FitScore finale, Terminal (current live target)
 
-- [ ] T3.x Retrieval surface, Volunteering, FitScore finale, Terminal. (R11, R14)
-- [ ] T4.x Optional R3F entity, sound (skipped), full a11y/perf audit.
+- [x] T3.1 `Knowledge.tsx` stage: blog/papers as a retrieval corpus. (R10)
+- [x] T3.2 `Volunteering.tsx` stage: pro-bono as "open weights". (R10)
+- [x] T3.3 `FitScore.tsx` finale: playful count-up score from the visitor's path + CTA. (R14)
+- [x] T3.4 `Terminal.tsx`: command surface (help, whoami, ls projects, cat experience,
+      run eval fitscore, open blog, sudo hire, clear, hidden jailbreak). (R11)
+- [x] T3.5 Wired stages into Walkthrough (docs prop); finale; volunteer narration; tokens sum to 128k.
+- [x] T3.6 Terminal mounted in AgentApp; dock "cmd" trigger + "/" key; projects passed to island.
+- [x] T3.7 Self-review + build clean. Verified: new-stage narration (knowledge/volunteer/finale),
+      finale verdict at 128k = "strong signal", terminal help/ls/whoami/unknown/esc/"/"-open, console clean.
+      (FitScore count-up gated on IO inView, not observable in pane; runs in real browser.)
+
+## Phase 3 gates
+
+- [x] G7 Senior-frontend-dev review passes.
+      PASS after fixing 1 Major (FitScore hydration mismatch) + 2 Minors (reduced-motion
+      doc cards, terminal focus restore).
+- [~] G8 UI-testing agent passes.
+- [ ] G9 Commit + deploy; verify live.
+
+## Phase 4 (queued)
+
+- [ ] T4.x Optional R3F 3D entity, sound (declined), full a11y/perf audit.

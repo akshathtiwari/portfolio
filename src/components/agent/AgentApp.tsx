@@ -14,6 +14,8 @@ import AgentEntity from "./AgentEntity";
 import Greeting from "./Greeting";
 import Transcript from "./Transcript";
 import AgentDock from "./AgentDock";
+import Terminal from "./Terminal";
+import type { ProjectLite } from "../walk/EvalSuite";
 import "./agent.css";
 
 // Lazy so GSAP only downloads when a boot actually runs (returning visitors and
@@ -45,7 +47,7 @@ function setBackgroundInert(on: boolean) {
   }
 }
 
-export default function AgentApp() {
+export default function AgentApp({ projects = [] }: { projects?: ProjectLite[] }) {
   const reduced = usePrefersReducedMotion();
   const [snapshot, send] = useMachine(agentMachine);
   const visual = snapshot.value as AgentVisualState;
@@ -53,6 +55,7 @@ export default function AgentApp() {
   const [phase, setPhase] = useState<Phase | null>(null);
   const [mode, setModeLocal] = useState<Mode>("unset");
   const [dismissing, setDismissing] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const bootHandled = useRef(false);
   const cameFromOverlay = useRef(false);
   const skipRef = useRef<HTMLButtonElement>(null);
@@ -118,6 +121,21 @@ export default function AgentApp() {
     };
   }, []);
 
+  // Open the terminal with "/" when not typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing =
+        !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+      if (e.key === "/" && !typing && !terminalOpen) {
+        e.preventDefault();
+        setTerminalOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [terminalOpen]);
+
   const handleBootDone = useCallback(() => {
     if (bootHandled.current) return;
     bootHandled.current = true;
@@ -181,6 +199,7 @@ export default function AgentApp() {
           Skip to content
         </button>
         <Transcript onChoose={handleChoose} />
+        {terminalOpen && <Terminal projects={projects} onClose={() => setTerminalOpen(false)} />}
       </div>
     );
   }
@@ -223,8 +242,16 @@ export default function AgentApp() {
       )}
 
       {phase === "docked" && (
-        <AgentDock mode={mode} visual={visual} reduced={reduced} onReplay={handleReplay} />
+        <AgentDock
+          mode={mode}
+          visual={visual}
+          reduced={reduced}
+          onReplay={handleReplay}
+          onOpenTerminal={() => setTerminalOpen(true)}
+        />
       )}
+
+      {terminalOpen && <Terminal projects={projects} onClose={() => setTerminalOpen(false)} />}
     </div>
   );
 }

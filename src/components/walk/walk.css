@@ -332,6 +332,107 @@ html.walk-js .walk-eval__fill.on {
   transform: scaleX(1);
 }
 
+.walk-btn--solid {
+  display: inline-block;
+  background: var(--w-accent);
+  border-color: var(--w-accent);
+  color: #06281d;
+  font-weight: 600;
+  text-decoration: none;
+}
+.walk-btn--solid:hover,
+.walk-btn--solid:focus-visible {
+  filter: brightness(1.08);
+  color: #06281d;
+}
+
+/* ---------- knowledge / retrieval ---------- */
+.walk-docs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+.walk-doc {
+  border: 1px solid var(--w-border);
+  border-radius: 0.6rem;
+  background: var(--w-panel);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.walk-doc:hover {
+  border-color: var(--w-accent);
+  transform: translateY(-2px);
+}
+html.walk-js .walk-stage .walk-doc {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+html.walk-js .walk-stage.in-view .walk-doc {
+  opacity: 1;
+  transform: none;
+}
+.walk-doc__link {
+  display: block;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  color: inherit;
+}
+.walk-doc__badge {
+  font-family: var(--w-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--w-accent);
+  border: 1px solid var(--w-accent-soft);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+.walk-doc__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--w-text);
+  margin: 0.55rem 0 0.35rem;
+}
+.walk-doc__desc {
+  font-size: 0.9rem;
+  color: var(--w-dim);
+  line-height: 1.55;
+  margin: 0 0 0.6rem;
+}
+
+/* ---------- fitscore finale ---------- */
+.walk-fit__score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+}
+.walk-fit__num {
+  font-size: clamp(3.5rem, 12vw, 6rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--w-accent);
+  font-variant-numeric: tabular-nums;
+}
+.walk-fit__max {
+  font-family: var(--w-mono);
+  font-size: 1.1rem;
+  color: var(--w-faint);
+}
+.walk-fit__verdict {
+  color: var(--w-dim);
+  max-width: 48ch;
+  margin: 0 0 1.6rem;
+  line-height: 1.6;
+}
+.walk-fit__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
 @media (max-width: 560px) {
   .walk-card__row {
     grid-template-columns: 1fr;
@@ -344,7 +445,8 @@ html.walk-js .walk-eval__fill.on {
   html.walk-js .walk-stage.in-view,
   html.walk-js .walk-card__row,
   html.walk-js .walk-run__cp,
-  html.walk-js .walk-eval {
+  html.walk-js .walk-eval,
+  html.walk-js .walk-doc {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;

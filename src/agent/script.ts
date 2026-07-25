@@ -46,6 +46,22 @@ export const STAGE_NARRATION: Record<string, string> = {
     "These are his tools. I can call any one, or run the whole suite. Headline eval: a 4B student fine-tuned to land within two points of GPT-4.1, then quantized and served on vLLM.",
   knowledge:
     "His writing is my retrieval corpus. Ask about attention scaling and I will pull the post he wrote on it.",
+  volunteer:
+    "He open-sources some of his compute. Pro-bono ML and data science for nonprofits, no invoice attached.",
   finale:
     "I have enough context now. Running the eval I was built for. Computing FitScore for you against this candidate.",
 };
+
+// Terminal help text (R11). Keep short; the terminal renders these as a list.
+export const TERMINAL_HELP: [string, string][] = [
+  ["help", "list commands"],
+  ["whoami", "who this checkpoint represents"],
+  ["ls projects", "list the tool registry"],
+  ["cat experience", "print the training run"],
+  ["run eval fitscore", "jump to the FitScore finale"],
+  ["open blog", "open the writing"],
+  ["sudo hire", "reach out (contact)"],
+  ["clear", "clear the screen"],
+];
+
+export const TERMINAL_BANNER = "axon shell · type 'help'";

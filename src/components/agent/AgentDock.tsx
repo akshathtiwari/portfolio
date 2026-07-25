@@ -15,9 +15,10 @@ interface Props {
   visual: AgentVisualState;
   reduced: boolean;
   onReplay: () => void;
+  onOpenTerminal: () => void;
 }
 
-export default function AgentDock({ mode, visual, reduced, onReplay }: Props) {
+export default function AgentDock({ mode, visual, reduced, onReplay, onOpenTerminal }: Props) {
   const st = useStore(agent);
   const stageText = STAGE_NARRATION[st.stage];
   const narrating = Boolean(stageText);
@@ -47,15 +48,26 @@ export default function AgentDock({ mode, visual, reduced, onReplay }: Props) {
         )}
         <ContextMeter />
       </div>
-      <button
-        type="button"
-        className="axon-dock__replay"
-        data-testid="replay"
-        onClick={onReplay}
-        aria-label="Replay AXON intro"
-      >
-        replay
-      </button>
+      <div className="axon-dock__actions">
+        <button
+          type="button"
+          className="axon-dock__btn"
+          data-testid="open-terminal"
+          onClick={onOpenTerminal}
+          aria-label="Open AXON shell"
+        >
+          cmd
+        </button>
+        <button
+          type="button"
+          className="axon-dock__btn"
+          data-testid="replay"
+          onClick={onReplay}
+          aria-label="Replay AXON intro"
+        >
+          replay
+        </button>
+      </div>
     </aside>
   );
 }

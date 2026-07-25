@@ -4,6 +4,11 @@
 // content only while the boot overlay is up, and only when JS is present,
 // not reduced-motion, and the visitor has not chosen a mode before (R6/R7).
 import AgentApp from "./agent/AgentApp.tsx";
+import { getCollection } from "astro:content";
+
+const projects = (await getCollection("projects"))
+  .sort((a, b) => a.data.order - b.data.order)
+  .map((p) => ({ id: p.id, title: p.data.title, theme: p.data.theme }));
 ---
 
 <script is:inline>
@@ -34,4 +39,4 @@ import AgentApp from "./agent/AgentApp.tsx";
   }
 </style>
 
-<AgentApp client:only="react" />
+<AgentApp projects={projects} client:only="react" />

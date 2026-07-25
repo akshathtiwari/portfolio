@@ -8,6 +8,15 @@ import { getCollection } from "astro:content";
 const projects = (await getCollection("projects"))
   .sort((a, b) => a.data.order - b.data.order)
   .map((p) => ({ id: p.id, title: p.data.title, theme: p.data.theme }));
+
+const docs = (await getCollection("blog", ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .map((p) => ({
+    id: p.id,
+    title: p.data.title,
+    description: p.data.description,
+    tags: p.data.tags,
+  }));
 ---
 
 <script is:inline>
@@ -22,4 +31,4 @@ const projects = (await getCollection("projects"))
   })();
 </script>
 
-<Walkthrough projects={projects} client:load />
+<Walkthrough projects={projects} docs={docs} client:load />
