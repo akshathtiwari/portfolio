@@ -23,6 +23,23 @@
 
 Verified counts on the live build: 51 cards total, 8 fully derived (Phase 0 + 1).
 
+## Increment 1.1 — math robustness fix (commit 8dcfaf1)
+
+- [x] Root-caused "math not properly formatted": runtime CDN KaTeX fell back to
+      Times New Roman wherever cdnjs was slow/blocked or webfonts weren't painted.
+- [x] Self-host KaTeX css + 20 woff2 fonts under `public/blog-embeds/katex/`.
+- [x] Pre-render all 142 equations to static HTML at build via
+      `scripts/prerender-katex-embed.mjs` (idempotent; scans only the #derivations
+      region). Removed CDN css/js + runtime auto-render entirely.
+- [x] Fixed iframe-resize regression: `postHeight()` was called before its
+      non-hoisted `window.postHeight = ...` definition → ReferenceError aborted the
+      script. Reordered so it's defined before first use.
+- [x] Verified in real Chrome on live prod: math renders correctly, cdn refs = 0,
+      no KaTeX JS globals, iframe resizes (3198 ↔ 4486px).
+
+NOTE for future card fills: after adding `$...$` math, run
+`node scripts/prerender-katex-embed.mjs` before build+push.
+
 ## Later increments — fill the map (one phase per sitting, per source cadence)
 
 - [ ] Phase 2 — transformer block (residual stream, normalization, FFN/activations, GPT-2 anatomy)
