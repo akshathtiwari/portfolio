@@ -1,0 +1,16 @@
+---
+title: "Speculative Decoding: Guess Ahead, Verify in Bulk"
+description: "An interactive walk through speculative decoding: how a fast draft model and a careful verifier produce several tokens per forward pass while keeping the big model's exact output distribution. Live panels for the memory-bound bottleneck, the accept/reject rule, and the speedup ledger."
+date: 2026-07-19
+tags: ["llm", "inference", "speculative-decoding", "interactive"]
+draft: false
+immersive: true
+---
+
+import BlogEmbed from "../../components/BlogEmbed.astro";
+
+<div style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+Language models generate text one token at a time, and each token is a full, memory-bound forward pass through billions of parameters. Speculative decoding gets several tokens per pass without changing the output: a small, fast draft model guesses the next few tokens, and the big target model verifies them all in one parallel pass, keeping the good ones. The trick is a memory-bandwidth loophole (scoring many tokens in a pass costs almost the same as one) plus an exact accept/reject rule: keep a guess with probability min(1, p/q), and on rejection resample from the normalized leftover max(0, p minus q), which makes the output identical to sampling from the target model alone. This interactive essay walks through the bottleneck, the loophole, the draft-verify-settle loop, the exactness proof, the speedup ledger (words per pass and the break-even against drafting cost), and the family of variants (self-speculation, feature-level drafting, n-gram lookahead).
+</div>
+
+<BlogEmbed src="/blog-embeds/speculative-decoding.html" title="Speculative Decoding: guess ahead, verify in bulk" />

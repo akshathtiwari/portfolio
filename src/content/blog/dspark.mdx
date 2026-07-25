@@ -1,0 +1,16 @@
+---
+title: "DSpark: Keep the Speed, Fix What Parallel Broke"
+description: "Confidence-scheduled speculative decoding with semi-autoregressive generation. DSpark stitches block coherence back with a tiny sequential head and verifies only what's worth verifying with a hardware-aware scheduler, staying lossless while shifting the serving Pareto frontier. 60 to 85% faster per user in production."
+date: 2026-07-20
+tags: ["llm", "inference", "speculative-decoding", "serving", "interactive"]
+draft: false
+immersive: true
+---
+
+import BlogEmbed from "../../components/BlogEmbed.astro";
+
+<div style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+Parallel block drafters like DFlash guess every position in a block at once, which is fast but blind: no token sees its neighbours, so acceptance decays down the block, and verifying long blocks wastes batch capacity under load. DSpark (Cheng, Yu, Shao et al., DeepSeek-AI and Peking University) adds one fix per crack. Fix one, semi-autoregressive drafting: keep the parallel backbone but bolt on a tiny sequential head (a Markov or RNN transition bias) so each token conditions on the one before it, restoring coherence with almost no added latency, for +16 to 18% accepted length over DFlash and +27 to 31% over EAGLE-3. Fix two, confidence-scheduled verification: a confidence head predicts per-position survival odds, and a hardware-aware scheduler picks the verify length that maximizes system throughput tau times SPS(B) for the current load, verifying deep when idle and short when slammed. It stays exactly lossless. In production on DeepSeek-V4 it is 60 to 85% faster per user at matched throughput, holding up where the baseline hits a latency cliff. This is the fourth post in a series: scaled attention, speculative decoding, DFlash, DSpark.
+</div>
+
+<BlogEmbed src="/blog-embeds/dspark.html" title="DSpark: keep the speed, fix what parallel broke" />

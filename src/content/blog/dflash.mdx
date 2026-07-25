@@ -1,0 +1,16 @@
+---
+title: "DFlash: Draft a Whole Block in One Shot"
+description: "Block-diffusion drafting for speculative decoding. DFlash replaces the sequential drafter with a diffusion adapter that fills a whole block of tokens in one parallel pass, conditioned on the target model's own hidden features injected into every draft layer, for over 6x lossless speedup. Interactive breakdown of both levers."
+date: 2026-07-20
+tags: ["llm", "inference", "speculative-decoding", "diffusion", "interactive"]
+draft: false
+immersive: true
+---
+
+import BlogEmbed from "../../components/BlogEmbed.astro";
+
+<div style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+Speculative decoding still has a slow part: the draft model writes its guesses one token at a time, so drafting cost grows with the number of tokens guessed, and the best methods keep the drafter tiny to stay cheap, capping speedups around 2 to 3x. DFlash (Chen, Liang and Liu) unchains the two levers of the speedup equation L = (T_draft + T_verify) / tau. Move one: a block-diffusion model fills a whole block of masked tokens in a single parallel pass, so drafting cost stops growing with block size, which frees room for a deeper five-layer drafter with no latency penalty. Move two: it injects the target model's hidden features into the Key and Value of every draft layer, so the guidance never fades with depth and acceptance keeps rising, unlike input-only conditioning. The result is over 6x lossless speedup on Qwen3-8B, about 2.5x beyond EAGLE-3, accepting roughly 6.5 tokens per cycle. This interactive essay covers the sequential-drafting cost, the two levers, parallel block drafting, KV-injected conditioning, benchmark results, batching behavior, and the reframing of diffusion models as disposable parallel scouts.
+</div>
+
+<BlogEmbed src="/blog-embeds/dflash.html" title="DFlash: draft a whole block at once" />

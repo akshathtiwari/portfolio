@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Speculative Decoding · guess ahead, verify in bulk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>
+:root{
+  --bg:#0d141d;
+  --bg-2:#0a1017;
+  --panel:#141f2b;
+  --panel-2:#1b2836;
+  --line:#26364a;
+  --line-2:#38506a;
+  --ink:#eaf1f8;
+  --dim:#9db0c4;
+  --faint:#63788d;
+  --draft:#b79cff;
+  --draft-dim:#5b4b8a;
+  --accept:#43d19e;
+  --accept-dim:#1f6b55;
+  --reject:#ff6f6b;
+  --reject-dim:#7d3230;
+  --target:#4cc4ff;
+  --target-dim:#245a76;
+  --radius:12px;
+  --f-display:'Fraunces', Georgia, serif;
+  --f-body:'Inter', system-ui, sans-serif;
+  --f-mono:'JetBrains Mono', ui-monospace, monospace;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--f-body); font-size:16.5px; line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 50% -8%, rgba(76,196,255,0.06), transparent 60%);
+}
+::selection{background:rgba(76,196,255,0.28); color:var(--ink);}
+a{color:var(--target); text-underline-offset:3px; text-decoration-color:var(--target-dim);}
+:focus-visible{outline:2px solid var(--target); outline-offset:3px; border-radius:3px;}
+
+.progress{position:fixed; top:0; left:0; height:2px; width:0%; background:linear-gradient(90deg,var(--draft),var(--target)); box-shadow:0 0 10px rgba(76,196,255,0.5); z-index:100; transition:width .08s linear;}
+
+main, .wrap{max-width:740px; margin:0 auto; padding:0 24px;}
+.section{padding:92px 0; border-top:1px solid var(--line);}
+.reveal{opacity:0; transform:translateY(20px); transition:opacity .7s ease, transform .7s ease;}
+.reveal.in{opacity:1; transform:none;}
+
+.eyebrow{font-family:var(--f-mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--target); margin:0 0 16px; display:flex; align-items:center; gap:12px;}
+.eyebrow .num{color:var(--faint);}
+.eyebrow::after{content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--line-2),transparent);}
+
+h1{font-family:var(--f-display); font-weight:900; font-size:clamp(40px,7.5vw,82px); line-height:1.02; letter-spacing:-.02em; margin:0 0 24px;}
+h1 em{font-style:italic; font-weight:500; color:var(--draft);}
+h2{font-family:var(--f-display); font-weight:600; font-size:clamp(27px,4.2vw,40px); line-height:1.12; letter-spacing:-.01em; margin:0 0 20px;}
+h2 em{font-style:italic; color:var(--target);}
+h3{font-family:var(--f-display); font-weight:600; font-size:20px; margin:0 0 6px;}
+p{margin:0 0 18px;}
+.lede{font-size:20px; line-height:1.6; color:var(--dim); max-width:60ch;}
+.dim{color:var(--dim);} .faint{color:var(--faint);}
+strong{color:var(--ink); font-weight:600;}
+.mono{font-family:var(--f-mono);}
+em.key{font-style:normal; color:var(--draft); font-weight:500;}
+em.tgt{font-style:normal; color:var(--target); font-weight:500;}
+em.acc{font-style:normal; color:var(--accept); font-weight:500;}
+em.rej{font-style:normal; color:var(--reject); font-weight:500;}
+
+/* hero */
+.hero{padding:112px 0 40px;}
+.hero .stream{display:flex; flex-wrap:wrap; gap:6px; margin:40px 0 8px;}
+.hero-cue{font-family:var(--f-mono); font-size:12px; color:var(--faint); letter-spacing:.08em; margin-top:34px;}
+
+/* console panel */
+.console{
+  position:relative; background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:26px 24px; margin:30px 0;
+}
+.console::before{content:""; position:absolute; inset:0; border-radius:var(--radius); pointer-events:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+.console-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap;}
+.console-tag{font-family:var(--f-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); display:flex; align-items:center; gap:8px;}
+.console-tag .dot{width:6px; height:6px; border-radius:50%; background:var(--target); box-shadow:0 0 6px var(--target);}
+
+/* token chips */
+.tok{font-family:var(--f-mono); font-size:14px; padding:5px 9px; border-radius:6px; border:1px solid var(--line); background:var(--panel-2); color:var(--dim); display:inline-flex; align-items:center; gap:6px; transition:all .25s ease; white-space:nowrap;}
+.tok--seed{background:rgba(76,196,255,.08); border-color:var(--target-dim); color:var(--ink);}
+.tok--pending{opacity:.35; border-style:dashed;}
+.tok--draft{background:rgba(183,156,255,.1); border-color:var(--draft-dim); color:var(--draft);}
+.tok--accept{background:rgba(67,209,158,.12); border-color:var(--accept-dim); color:var(--accept);}
+.tok--reject{background:rgba(255,111,107,.1); border-color:var(--reject-dim); color:var(--reject); text-decoration:line-through; text-decoration-color:var(--reject);}
+.tok--bonus{background:rgba(76,196,255,.14); border-color:var(--target); color:var(--target);}
+.tok--final{background:rgba(76,196,255,.08); border-color:var(--target-dim); color:var(--ink);}
+.tok .mark{font-size:10px; opacity:.8;}
+.tok--flash{animation:flash .5s ease;}
+@keyframes flash{0%{transform:scale(1.12); filter:brightness(1.4);} 100%{transform:scale(1);}}
+
+/* controls */
+.ctrl{display:flex; align-items:center; gap:14px; margin:16px 0; flex-wrap:wrap;}
+.ctrl-label{font-family:var(--f-mono); font-size:12px; color:var(--dim); min-width:118px;}
+input[type=range]{-webkit-appearance:none; appearance:none; flex:1; min-width:150px; height:4px; border-radius:2px; background:var(--line-2); outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--target); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--target); cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:var(--target); border:2px solid var(--bg); cursor:pointer;}
+.val{font-family:var(--f-mono); font-size:14px; color:var(--target); min-width:56px; text-align:right;}
+button.btn{font-family:var(--f-mono); font-size:13px; padding:9px 16px; border-radius:8px; border:1px solid var(--line-2); background:var(--panel-2); color:var(--ink); cursor:pointer; transition:all .18s ease;}
+button.btn:hover{border-color:var(--target); color:var(--target);}
+button.btn:disabled{opacity:.4; cursor:not-allowed;}
+button.btn--primary{background:rgba(76,196,255,.14); border-color:var(--target); color:var(--target);}
+button.btn--primary:hover{background:rgba(76,196,255,.22);}
+.btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;}
+
+.pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;}
+.pill{font-family:var(--f-mono); font-size:12px; padding:7px 13px; border-radius:20px; background:var(--panel-2); border:1px solid var(--line); color:var(--dim); cursor:pointer; transition:all .18s ease;}
+.pill.active{border-color:var(--draft); color:var(--draft); box-shadow:inset 0 0 0 1px var(--draft-dim);}
+
+/* readouts */
+.readouts{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin-top:18px;}
+.rd{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; padding:12px 14px;}
+.rd .l{font-family:var(--f-mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;}
+.rd .v{font-family:var(--f-mono); font-size:22px; color:var(--ink); line-height:1;}
+.rd .v.a{color:var(--accept);} .rd .v.t{color:var(--target);} .rd .v.d{color:var(--draft);} .rd .v.r{color:var(--reject);}
+.rd .sub{font-family:var(--f-mono); font-size:10px; color:var(--faint); margin-top:4px;}
+
+/* time bars (w2) */
+.timebar-wrap{margin-top:8px;}
+.timebar-row{display:grid; grid-template-columns:96px 1fr; align-items:center; gap:12px; margin:8px 0;}
+.timebar-name{font-family:var(--f-mono); font-size:12px; color:var(--dim);}
+.timebar-track{position:relative; height:26px; background:var(--bg-2); border-radius:5px; border:1px solid var(--line); overflow:hidden;}
+.timebar-load{position:absolute; top:0; left:0; height:100%; background:repeating-linear-gradient(45deg, rgba(99,120,141,.28) 0 6px, rgba(99,120,141,.14) 6px 12px);}
+.timebar-comp{position:absolute; top:0; height:100%; background:var(--target); opacity:.75;}
+.timebar-cap{position:absolute; right:8px; top:50%; transform:translateY(-50%); font-family:var(--f-mono); font-size:11px; color:var(--ink);}
+
+/* distribution bars (w4) */
+.dist{display:flex; flex-direction:column; gap:9px; margin-top:6px;}
+.dist-row{display:grid; grid-template-columns:70px 1fr 46px; align-items:center; gap:10px;}
+.dist-name{font-family:var(--f-mono); font-size:12px; color:var(--dim); text-align:right;}
+.dist-name.picked{color:var(--ink); font-weight:600;}
+.dist-track{height:16px; background:var(--bg-2); border-radius:4px; border:1px solid var(--line); overflow:hidden; position:relative;}
+.dist-fill{height:100%; border-radius:3px 0 0 3px; transition:width .4s ease;}
+.dist-fill.q{background:var(--draft);}
+.dist-fill.p{background:var(--target);}
+.dist-fill.res{background:var(--accept);}
+.dist-pct{font-family:var(--f-mono); font-size:11px; color:var(--faint); text-align:right;}
+.dist-legend{display:flex; gap:16px; margin:4px 0 14px; flex-wrap:wrap;}
+.leg{display:flex; align-items:center; gap:7px; font-family:var(--f-mono); font-size:11px; color:var(--dim);}
+.leg .sw{width:11px; height:11px; border-radius:3px;}
+
+.verdict{margin-top:18px; padding:14px 16px; border-radius:8px; border:1px solid var(--line); background:var(--bg-2); font-size:14.5px; min-height:52px;}
+.verdict.accept{border-color:var(--accept-dim); background:rgba(67,209,158,.07);}
+.verdict.reject{border-color:var(--reject-dim); background:rgba(255,111,107,.07);}
+.verdict .big{font-family:var(--f-mono); font-weight:500;}
+
+/* speedup mini chart (w5) */
+.spark{display:flex; align-items:flex-end; gap:6px; height:120px; margin-top:20px; padding-top:8px;}
+.spark-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
+.spark-bar{width:100%; max-width:34px; border-radius:4px 4px 0 0; background:var(--line-2); transition:height .3s ease, background .3s ease; min-height:2px;}
+.spark-bar.cur{background:var(--target);}
+.spark-bar.opt{background:var(--accept);}
+.spark-x{font-family:var(--f-mono); font-size:10px; color:var(--faint);}
+.spark-cap{font-family:var(--f-mono); font-size:11px; color:var(--dim); margin-top:12px; text-align:center;}
+.interp{margin-top:14px; font-size:14px; color:var(--dim); border-left:2px solid var(--draft-dim); padding-left:14px;}
+
+/* math */
+.math{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; padding:16px 20px; margin:18px 0; overflow-x:auto;}
+.katex{color:var(--ink)!important;}
+
+/* callout / details */
+details{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:2px 22px; margin:22px 0;}
+details[open]{padding-bottom:18px;}
+summary{cursor:pointer; font-family:var(--f-mono); font-size:13px; color:var(--target); padding:16px 0; list-style:none; display:flex; align-items:center; gap:10px;}
+summary::-webkit-details-marker{display:none;}
+summary::before{content:"+"; font-size:16px; color:var(--target); transition:transform .2s;}
+details[open] summary::before{content:"−";}
+summary:hover{color:var(--ink);}
+
+.note{border-left:2px solid var(--target-dim); padding:2px 0 2px 16px; margin:20px 0; color:var(--dim); font-size:14.5px;}
+
+/* family cards (w7) */
+.fam{display:grid; gap:14px; margin-top:8px;}
+.fam-card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 20px; transition:border-color .2s;}
+.fam-card:hover{border-color:var(--line-2);}
+.fam-card .tag{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--draft); margin-bottom:8px;}
+.fam-card p{margin:0; font-size:14.5px; color:var(--dim);}
+
+/* outro */
+.outro{padding:80px 0 110px; border-top:1px solid var(--line);}
+.sheet{display:grid; grid-template-columns:auto 1fr; gap:14px 22px; margin-top:26px; font-size:14.5px;}
+.sheet dt{font-family:var(--f-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--target); padding-top:3px;}
+.sheet dd{margin:0; color:var(--dim);}
+.footnote{margin-top:44px; font-size:13px; color:var(--faint);}
+
+@media (max-width:560px){
+  .hero{padding:80px 0 30px;}
+  .dist-row{grid-template-columns:56px 1fr 40px;}
+  .timebar-row{grid-template-columns:70px 1fr;}
+  .sheet{grid-template-columns:1fr;} .sheet dt{padding-top:12px;}
+}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<header class="hero wrap">
+  <p class="eyebrow"><span class="num">00</span> a faster way to run a slow model</p>
+  <h1>Guess ahead.<br>Then <em>verify in bulk.</em></h1>
+  <p class="lede">Big language models write one word at a time, and each word is a full trip through billions of parameters. Speculative decoding is a trick to get several words per trip — <strong>without changing a single word of the output.</strong></p>
+  <div class="stream" id="heroStream" aria-hidden="true"></div>
+  <p class="hero-cue">↓ start reading — every panel below is live, drag and press things</p>
+</header>
+
+<main>
+
+  <!-- 01 THE BOTTLENECK -->
+  <section class="section reveal" id="s1">
+    <p class="eyebrow"><span class="num">01</span> the bottleneck</p>
+    <h2>Why writing one word at a time is so slow</h2>
+    <p>A language model generates text <em class="tgt">autoregressively</em>: it predicts the next word, appends it, then feeds the whole thing back in to predict the word after that. Word by word, in strict order — position 12 can't be computed until position 11 exists.</p>
+    <p>Here's the expensive part. Each of those predictions is one <strong>forward pass</strong>: the model reads its billions of parameters out of memory to produce a single next word. Writing a 200-word answer means doing that 200 times, in sequence. The clock time is basically "number of words × cost of one full pass."</p>
+    <p>And that cost is dominated by something surprising — not the arithmetic, but the <strong>memory traffic</strong>. To make even one word, the hardware has to haul the entire model's weights from memory to the chip. The actual multiply-adds are almost an afterthought; the chip spends most of its time waiting for weights to arrive.</p>
+
+    <div class="console">
+      <div class="console-head">
+        <span class="console-tag"><span class="dot"></span>one-at-a-time generator</span>
+        <span class="faint mono" id="w1-clock" style="font-size:12px;">passes: 0</span>
+      </div>
+      <div class="stream" id="w1-stream" style="min-height:44px;"></div>
+      <div class="btn-row">
+        <button class="btn btn--primary" id="w1-step">Generate next word →</button>
+        <button class="btn" id="w1-auto">Auto-run</button>
+        <button class="btn" id="w1-reset">Reset</button>
+      </div>
+      <p class="faint mono" style="font-size:11.5px; margin:16px 0 0;">Each word costs one full forward pass. Nine words → nine passes, strictly in order.</p>
+    </div>
+
+    <p>So the wall we're up against is: <strong>one full, memory-heavy pass per word, and the passes can't overlap</strong>. If we want to go faster, we somehow need to get more than one word out of a single pass. Which sounds impossible — until you notice one loophole.</p>
+  </section>
+
+  <!-- 02 THE LOOPHOLE -->
+  <section class="section reveal" id="s2">
+    <p class="eyebrow"><span class="num">02</span> the loophole</p>
+    <h2>Checking eight words costs almost the same as <em>making one</em></h2>
+    <p class="lede">This single fact is the whole reason speculative decoding works.</p>
+    <p>Remember that a forward pass spends nearly all its time hauling weights from memory, not computing. Now here's the loophole: <strong>once the weights are on the chip, running them over eight words costs almost the same as running them over one.</strong> The expensive step — loading the model — already happened. Feeding a few more words through is nearly free.</p>
+    <p>Put differently: the model can <em class="tgt">read and score a whole span of words in parallel, in a single pass</em>. It just can't <em>invent</em> them in parallel, because inventing word 12 requires already knowing word 11. Reading is parallel; writing is sequential.</p>
+
+    <div class="console">
+      <div class="console-head">
+        <span class="console-tag"><span class="dot"></span>cost of one pass vs. words in it</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl-label">Words in the pass</span>
+        <input type="range" id="w2-k" min="1" max="8" step="1" value="1">
+        <span class="val" id="w2-kv">1</span>
+      </div>
+      <div class="timebar-wrap">
+        <div class="timebar-row">
+          <span class="timebar-name">time / pass</span>
+          <div class="timebar-track">
+            <div class="timebar-load" id="w2-load"></div>
+            <div class="timebar-comp" id="w2-comp"></div>
+            <span class="timebar-cap" id="w2-cap">103</span>
+          </div>
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="rd"><div class="l">words scored</div><div class="v t" id="w2-words">1</div></div>
+        <div class="rd"><div class="l">time / pass</div><div class="v" id="w2-time">103</div><div class="sub">≈ units</div></div>
+        <div class="rd"><div class="l">cost per word</div><div class="v a" id="w2-per">103</div><div class="sub">time ÷ words</div></div>
+      </div>
+      <p class="faint mono" style="font-size:11.5px; margin:16px 0 0;">Striped = loading weights (fixed, unavoidable). Solid = per-word compute (tiny). Drag the slider: the bar barely grows, but cost-per-word falls off a cliff.</p>
+    </div>
+
+    <p>So we have a fast, parallel <strong>verifier</strong> hiding inside our slow, sequential writer. If only we had a cheap way to produce a <em>guess</em> at the next several words — the big model could check all of them at once, almost for free. That's exactly the plan.</p>
+  </section>
+
+  <!-- 03 THE MOVE -->
+  <section class="section reveal" id="s3">
+    <p class="eyebrow"><span class="num">03</span> the move</p>
+    <h2>A fast junior drafts; a careful editor checks</h2>
+    <p>Speculative decoding runs <strong>two</strong> models. The <em class="key">draft model</em> is small and fast — think a keen junior who types quickly and is usually right. The <em class="tgt">target model</em> is the big, authoritative one whose output we actually want — the careful editor.</p>
+    <p>The loop is:</p>
+    <p><strong>1. Draft.</strong> The little model quickly writes the next few words on its own — say four. This is cheap because it's a small model, even though it's sequential.<br>
+    <strong>2. Verify.</strong> The big model reads the draft's four guesses <em>in a single parallel pass</em> (that's the loophole from section 02) and, at every position, forms its own opinion of what the word should be.<br>
+    <strong>3. Settle.</strong> Walk left to right. Wherever the editor agrees with the junior, <em class="acc">keep</em> that word. At the first disagreement, <em class="rej">correct</em> it to the editor's choice and throw away the rest of the draft (everything after a wrong word was written on a false premise).</p>
+    <p>The magic is in the accounting. If the junior got the first three words right, one editor-pass just produced <strong>four</strong> correct words (three kept + one correction). And if the junior nailed all four, the editor's parallel pass already computed the opinion for a <em class="tgt">fifth, bonus word</em> too — so you bank five words for the price of one pass.</p>
+
+    <div class="console">
+      <div class="console-head">
+        <span class="console-tag"><span class="dot"></span>draft → verify → settle</span>
+        <span class="faint mono" id="w3-round" style="font-size:12px;">round 0</span>
+      </div>
+      <div class="dist-legend">
+        <span class="leg"><span class="sw" style="background:var(--draft)"></span>draft guess</span>
+        <span class="leg"><span class="sw" style="background:var(--accept)"></span>kept</span>
+        <span class="leg"><span class="sw" style="background:var(--reject)"></span>corrected</span>
+        <span class="leg"><span class="sw" style="background:var(--target)"></span>bonus / final</span>
+      </div>
+      <p class="faint mono" style="font-size:11px; margin:0 0 8px;">sentence so far</p>
+      <div class="stream" id="w3-final" style="min-height:40px; margin-bottom:16px;"></div>
+      <p class="faint mono" style="font-size:11px; margin:0 0 8px;" id="w3-scratch-label" style="display:none;">this round's draft</p>
+      <div class="stream" id="w3-scratch" style="min-height:40px;"></div>
+      <div class="btn-row">
+        <button class="btn btn--primary" id="w3-next">Draft &amp; verify next round →</button>
+        <button class="btn" id="w3-reset">Reset</button>
+      </div>
+      <div class="readouts">
+        <div class="rd"><div class="l">editor passes used</div><div class="v t" id="w3-passes">0</div></div>
+        <div class="rd"><div class="l">words produced</div><div class="v" id="w3-tokens">0</div></div>
+        <div class="rd"><div class="l">words / pass</div><div class="v a" id="w3-ratio">—</div><div class="sub">the whole point</div></div>
+      </div>
+      <p class="faint mono" style="font-size:11.5px; margin:16px 0 0;">A plain model would need one pass per word (the two counters would match). Watch them pull apart.</p>
+    </div>
+
+    <p>Notice the safety net: even in the worst case — the junior's very first guess is wrong — the editor still corrects it and you get <strong>one</strong> good word from the pass. That's exactly what a plain model does. So you can never go slower in editor-passes than normal decoding; you only ever get <em>bonus</em> speed when guesses land. Speculative decoding has no downside in output — only upside in speed.</p>
+
+    <div class="note">"Never worse, often better" only counts <em>editor passes</em>. The draft model does real work too, and those little passes aren't free — section 05 puts that cost back into the ledger and finds the break-even.</div>
+  </section>
+
+  <!-- 04 THE RULE -->
+  <section class="section reveal" id="s4">
+    <p class="eyebrow"><span class="num">04</span> the rule that keeps it honest</p>
+    <h2>Why the output is <em>exactly</em> what the big model would say</h2>
+    <p>So far "the editor agrees" sounds fuzzy. If the editor just accepted whichever word it liked slightly, the final text would drift toward some blend of the two models — and you'd be quietly running a different, worse model. Speculative decoding avoids that with a precise acceptance rule that comes with a mathematical guarantee: <strong>the words you keep are distributed <em>identically</em> to sampling from the big model alone.</strong> Same quality, same randomness, same everything. The draft model only affects <em>speed</em>, never <em>what</em> gets said.</p>
+    <p>Here's the rule for a single position. The draft proposed a word with its own probability <span class="mono">q</span>. The big model assigns that same word probability <span class="mono">p</span>.</p>
+    <div class="math">$$\text{accept the guess with probability } \min\!\left(1,\ \frac{p}{q}\right)$$</div>
+    <p>Read it plainly: if the big model likes the word <em>at least as much</em> as the draft did (<span class="mono">p ≥ q</span>), always keep it. If the big model likes it <em>less</em> (<span class="mono">p &lt; q</span>), keep it only sometimes — precisely often enough to cancel out the draft's over-eagerness. And when a guess is rejected, you don't just grab the big model's favourite; you sample a replacement from the <em class="acc">leftover distribution</em> — the probability the big model still "owes" that the draft didn't already cover:</p>
+    <div class="math">$$\text{resample from } \ \operatorname{norm}\big(\max(0,\ p - q)\big)$$</div>
+    <p>Play with it. Pick how well the draft's opinion matches the editor's, then roll the dice on the drafted word.</p>
+
+    <div class="console">
+      <div class="console-head">
+        <span class="console-tag"><span class="dot"></span>accept / reject one word</span>
+      </div>
+      <div class="pill-row" id="w4-presets">
+        <button class="pill active" data-p="0">draft agrees</button>
+        <button class="pill" data-p="1">draft over-eager</button>
+        <button class="pill" data-p="2">draft is wrong</button>
+      </div>
+      <div class="dist-legend">
+        <span class="leg"><span class="sw" style="background:var(--draft)"></span>q · draft</span>
+        <span class="leg"><span class="sw" style="background:var(--target)"></span>p · big model</span>
+        <span class="leg"><span class="sw" style="background:var(--accept)"></span>leftover (resample on reject)</span>
+      </div>
+      <div class="dist" id="w4-dist"></div>
+      <div class="verdict" id="w4-verdict">Pick a scenario above, then roll to adjudicate the drafted word.</div>
+      <div class="readouts">
+        <div class="rd"><div class="l">drafted word</div><div class="v d" id="w4-drafted">—</div></div>
+        <div class="rd"><div class="l">accept chance min(1,p/q)</div><div class="v" id="w4-chance">—</div></div>
+        <div class="rd"><div class="l">kept / rolls</div><div class="v a" id="w4-tally">0 / 0</div><div class="sub" id="w4-rate">—</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn--primary" id="w4-roll">Roll the dice →</button>
+        <button class="btn" id="w4-roll10">Roll ×20</button>
+        <button class="btn" id="w4-clear">Clear tally</button>
+      </div>
+    </div>
+
+    <p>Roll a preset twenty times and watch the "kept" rate settle near the accept chance. Over-eager and wrong guesses get filtered out at exactly the right rate; the corrections fill the gap from the leftover distribution. Add it all up and the words that survive carry the big model's distribution, untouched.</p>
+
+    <details>
+      <summary>The one-line proof, if you want it</summary>
+      <p style="margin-top:6px;">For any word <span class="mono">x</span>, it reaches the output through two doors. <strong>Door one:</strong> the draft proposes it (chance <span class="mono">q(x)</span>) and it's accepted (chance <span class="mono">min(1, p(x)/q(x))</span>). That product is simply <span class="mono">min(q(x), p(x))</span>. <strong>Door two:</strong> some guess is rejected and <span class="mono">x</span> is drawn from the leftover <span class="mono">max(0, p−q)</span>. The total rejection mass exactly equals the leftover's mass, so door two contributes <span class="mono">max(0, p(x) − q(x))</span>.</p>
+      <div class="math">$$\min(q,p) + \max(0,\,p-q) \;=\; p$$</div>
+      <p style="margin-bottom:6px;">The two doors sum to <span class="mono">p(x)</span> for every word. The output is distributed <em>exactly</em> as if the big model had sampled directly — no approximation, no drift. That equality is the entire reason anyone trusts this trick in production.</p>
+    </details>
+  </section>
+
+  <!-- 05 THE LEDGER -->
+  <section class="section reveal" id="s5">
+    <p class="eyebrow"><span class="num">05</span> the ledger</p>
+    <h2>How much faster, really?</h2>
+    <p>The speed comes down to one number: the <em class="acc">acceptance rate</em> — how often the editor keeps a drafted word. Call it <span class="mono">α</span>. If the draft guesses <span class="mono">γ</span> words per round, the expected number of words banked per editor pass (including that free bonus word when a whole draft survives) is:</p>
+    <div class="math">$$\text{words per pass} \;=\; \frac{1 - \alpha^{\,\gamma+1}}{1 - \alpha}$$</div>
+    <p>But drafting isn't free. Each of those <span class="mono">γ</span> little draft steps costs some fraction <span class="mono">c</span> of an editor pass (a good draft model is maybe 5–20× cheaper, so <span class="mono">c</span> ≈ 0.05–0.2). So the real speedup weighs words banked against total work done — editor pass plus the drafting:</p>
+    <div class="math">$$\text{speedup} \;\approx\; \frac{\text{words per pass}}{1 + \gamma\, c}$$</div>
+    <p>Three knobs, one payoff. Find the sweet spot — and notice how <em>over</em>-guessing backfires when acceptance is low.</p>
+
+    <div class="console">
+      <div class="console-head">
+        <span class="console-tag"><span class="dot"></span>speedup explorer</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl-label">acceptance α</span>
+        <input type="range" id="w5-a" min="0.1" max="0.95" step="0.01" value="0.8">
+        <span class="val" id="w5-av">0.80</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl-label">draft length γ</span>
+        <input type="range" id="w5-g" min="1" max="10" step="1" value="4">
+        <span class="val" id="w5-gv">4</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl-label">draft cost c</span>
+        <input type="range" id="w5-c" min="0.02" max="0.4" step="0.01" value="0.1">
+        <span class="val" id="w5-cv">0.10</span>
+      </div>
+      <div class="readouts">
+        <div class="rd"><div class="l">words / pass</div><div class="v t" id="w5-tpp">3.36</div></div>
+        <div class="rd"><div class="l">total cost</div><div class="v" id="w5-cost">1.40</div><div class="sub">editor-pass units</div></div>
+        <div class="rd"><div class="l">speedup</div><div class="v a" id="w5-sp">2.40×</div></div>
+        <div class="rd"><div class="l">best γ here</div><div class="v d" id="w5-opt">6</div></div>
+      </div>
+      <p class="faint mono" style="font-size:11px; margin:22px 0 0;">speedup vs. draft length γ — <span style="color:var(--target)">■</span> current, <span style="color:var(--accept)">■</span> optimal</p>
+      <div class="spark" id="w5-spark"></div>
+      <div class="spark-cap">draft length γ →</div>
+      <div class="interp" id="w5-interp"></div>
+    </div>
+
+    <p>The pattern that falls out: <strong>when the draft is trustworthy (high α), guess boldly</strong> — long drafts pay off and the bonus word compounds. <strong>When it's shaky (low α), keep drafts short</strong> — every extra guess is likely wasted work that still costs <span class="mono">c</span>. And a cheaper draft model (small <span class="mono">c</span>) always shifts the sweet spot toward longer, braver speculation.</p>
+
+    <div class="note">Real numbers are messier: acceptance isn't truly independent word-to-word, hardware batching changes <span class="mono">c</span>, and long drafts eventually hit compute limits that break the "verification is free" loophole. But the shape is right, and it's why production systems tune γ per workload rather than picking one value forever.</div>
+  </section>
+
+  <!-- 06 THE KNOBS -->
+  <section class="section reveal" id="s6">
+    <p class="eyebrow"><span class="num">06</span> the tension</p>
+    <h2>Picking a draft model is a tug-of-war</h2>
+    <p>Everything hinges on the draft model, and it's pulled in two directions at once. Make it <strong>bigger</strong> and it guesses more like the target, so acceptance <span class="mono">α</span> climbs — but each draft step gets pricier, so <span class="mono">c</span> climbs too. Make it <strong>smaller</strong> and drafting is nearly free, but it guesses worse and gets corrected constantly. The whole art is landing in the middle:</p>
+
+    <div class="fam">
+      <div class="fam-card">
+        <div class="tag">too big a draft</div>
+        <p>High acceptance, but drafting is so expensive it eats the savings. In the extreme, your "draft" costs as much as the target and you've gained nothing.</p>
+      </div>
+      <div class="fam-card">
+        <div class="tag">too small a draft</div>
+        <p>Drafting is nearly free, but almost every guess is rejected. You're back to roughly one word per pass, plus wasted draft effort.</p>
+      </div>
+      <div class="fam-card">
+        <div class="tag">the sweet spot</div>
+        <p>A draft aligned to the target's style — often a small model from the same family, or the target distilled down — landing acceptance high enough that a short, cheap draft banks two-to-three words per pass.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:22px;">Alignment matters as much as size. A draft trained on the same data, sharing the target's tokenizer and quirks, will agree far more often than a same-sized draft from a different lineage. Acceptance is about <em>matching the target's taste</em>, not raw capability.</p>
+  </section>
+
+  <!-- 07 THE FAMILY -->
+  <section class="section reveal" id="s7">
+    <p class="eyebrow"><span class="num">07</span> the family tree</p>
+    <h2>One idea, several disguises</h2>
+    <p>"Guess ahead, verify in bulk, stay exact" is the shared skeleton. The variants mostly differ in <em>where the guesses come from</em> — because a separate draft model is the obvious source, but not the only one.</p>
+
+    <div class="fam">
+      <div class="fam-card">
+        <div class="tag">classic · separate draft model</div>
+        <p>The version we've walked through: a small standalone model proposes, the big one verifies. Simple, general, and the baseline everything else is measured against.</p>
+      </div>
+      <div class="fam-card">
+        <div class="tag">self-speculation · extra heads</div>
+        <p>Skip the second model entirely. Bolt a few lightweight "prediction heads" onto the target itself so it guesses several words ahead in one shot, then verifies them the same way. No separate model to host or keep aligned.</p>
+      </div>
+      <div class="fam-card">
+        <div class="tag">feature-level drafting</div>
+        <p>Instead of guessing raw words, predict the target's internal representations one step ahead and decode guesses from those. Cheaper, better-aligned guesses — higher acceptance from a very light drafter.</p>
+      </div>
+      <div class="fam-card">
+        <div class="tag">no draft at all · n-gram / lookahead</div>
+        <p>Draw candidate continuations from the text already generated or from simple n-gram patterns, then verify in parallel. Zero extra model — the guesses come from cheap heuristics, and the same exactness rule keeps the output honest.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:22px;">They all inherit the same guarantee from section 04: because verification uses the accept/leftover rule, none of them change what the model says. They only change how cheaply the guesses are produced — and therefore how much speed you can steal from that memory-bound wall we started with.</p>
+  </section>
+
+</main>
+
+<footer class="outro wrap">
+  <p class="eyebrow"><span class="num">✓</span> the whole thing on one card</p>
+  <h2 style="font-size:clamp(24px,3.6vw,34px);">Cheat sheet</h2>
+  <dl class="sheet">
+    <dt>the wall</dt>
+    <dd>Generation is one full, memory-bound forward pass per word, strictly sequential.</dd>
+    <dt>the loophole</dt>
+    <dd>A pass can <em>read and score</em> many words in parallel for almost the cost of one — it just can't <em>invent</em> them in parallel.</dd>
+    <dt>the move</dt>
+    <dd>A cheap draft model guesses several words; the big target model verifies them all in one pass and keeps the good ones.</dd>
+    <dt>the rule</dt>
+    <dd>Keep a guess with probability min(1, p/q); on rejection, resample from norm(max(0, p−q)). Output matches the target model exactly.</dd>
+    <dt>the payoff</dt>
+    <dd>Words per pass = (1 − α^(γ+1)) / (1 − α). Speedup trades that against drafting cost 1 + γc. Never slower in target passes; often much faster.</dd>
+    <dt>the tuning</dt>
+    <dd>High acceptance → draft long and bold. Low acceptance → draft short. Alignment between draft and target beats raw draft size.</dd>
+  </dl>
+  <p class="footnote">Built as a build-verify-fix loop: every number in the panels is computed live from the formulas above, and each formula was checked against a reference implementation before shipping. The exactness rule and speedup model follow the standard speculative-sampling results (Leviathan et al.; Chen et al., 2023), reframed here as a fast junior and a careful editor.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+"use strict";
+var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+document.addEventListener('DOMContentLoaded', function(){
+  if (window.renderMathInElement){
+    renderMathInElement(document.body, {
+      delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}],
+      throwOnError:false
+    });
+  }
+});
+
+/* ---- scroll progress + reveal ---- */
+(function(){
+  var bar=document.getElementById('progress');
+  function upd(){var h=document.documentElement;var m=h.scrollHeight-h.clientHeight;bar.style.width=(m>0?(h.scrollTop/m*100):0)+'%';}
+  document.addEventListener('scroll',upd,{passive:true}); upd();
+  var items=document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window)){items.forEach(function(e){e.classList.add('in');});return;}
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:0.1});
+  items.forEach(function(e){io.observe(e);});
+})();
+
+/* ---- helpers ---- */
+function el(tag,cls,txt){var n=document.createElement(tag);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n;}
+function chip(word,cls,mark){
+  var t=el('span','tok'+(cls?' '+cls:''));
+  t.appendChild(document.createTextNode(word));
+  if(mark){var m=el('span','mark',mark);t.appendChild(m);}
+  return t;
+}
+function softmax(a){var m=Math.max.apply(null,a);var e=a.map(function(x){return Math.exp(x-m);});var s=e.reduce(function(p,q){return p+q;},0);return e.map(function(x){return x/s;});}
+
+/* ---- hero stream (decorative) ---- */
+(function(){
+  var host=document.getElementById('heroStream');
+  var words=[['Guess','tok--seed'],['ahead','tok--draft'],[',','tok--accept'],['verify','tok--accept'],['in','tok--accept'],['bulk','tok--reject'],['—','tok--bonus'],['exactly','tok--final']];
+  words.forEach(function(w,i){
+    var c=chip(w[0],w[1]);
+    c.style.opacity='0'; c.style.transform='translateY(8px)';
+    host.appendChild(c);
+    if(REDUCED){c.style.opacity='1';c.style.transform='none';}
+    else{setTimeout(function(){c.style.transition='all .5s ease';c.style.opacity='1';c.style.transform='none';},180*i+250);}
+  });
+})();
+
+/* ==== W1 one-at-a-time ==== */
+(function(){
+  var SENT=['A','language','model','writes','one','word','at','a','time','.'];
+  var stream=document.getElementById('w1-stream'),clock=document.getElementById('w1-clock');
+  var stepB=document.getElementById('w1-step'),autoB=document.getElementById('w1-auto'),resetB=document.getElementById('w1-reset');
+  var i=0,timer=null;
+  function reset(){i=0;stream.innerHTML='';clock.textContent='passes: 0';stepB.disabled=false;if(timer){clearInterval(timer);timer=null;}autoB.textContent='Auto-run';}
+  function step(){
+    if(i>=SENT.length){stepB.disabled=true;if(timer){clearInterval(timer);timer=null;autoB.textContent='Auto-run';}return;}
+    var c=chip(SENT[i],'tok--final'); if(!REDUCED)c.classList.add('tok--flash');
+    stream.appendChild(c); i++; clock.textContent='passes: '+i;
+    if(i>=SENT.length)stepB.disabled=true;
+  }
+  stepB.addEventListener('click',step);
+  resetB.addEventListener('click',reset);
+  autoB.addEventListener('click',function(){
+    if(timer){clearInterval(timer);timer=null;autoB.textContent='Auto-run';return;}
+    if(i>=SENT.length)reset();
+    autoB.textContent='Pause';
+    timer=setInterval(function(){step();if(i>=SENT.length){clearInterval(timer);timer=null;autoB.textContent='Auto-run';}},REDUCED?60:420);
+  });
+})();
+
+/* ==== W2 batch nearly free ==== */
+(function(){
+  var LOAD=100,PER=3,MAX=140;
+  var k=document.getElementById('w2-k'),kv=document.getElementById('w2-kv');
+  var load=document.getElementById('w2-load'),comp=document.getElementById('w2-comp'),cap=document.getElementById('w2-cap');
+  var words=document.getElementById('w2-words'),time=document.getElementById('w2-time'),per=document.getElementById('w2-per');
+  function render(){
+    var K=+k.value; var t=LOAD+PER*K;
+    kv.textContent=K;
+    load.style.width=(LOAD/MAX*100)+'%';
+    comp.style.left=(LOAD/MAX*100)+'%';
+    comp.style.width=(PER*K/MAX*100)+'%';
+    cap.textContent=t;
+    words.textContent=K; time.textContent=t; per.textContent=(t/K).toFixed(1);
+  }
+  k.addEventListener('input',render); render();
+})();
+
+/* ==== W3 draft-verify walkthrough (scripted, exact) ==== */
+(function(){
+  // target's true continuation
+  var rounds=[
+    {draft:['jumps','over','the','sleepy'], accept:3, correct:'lazy', bonus:null},
+    {draft:['dog',',','then','trots'],       accept:4, correct:null,  bonus:'off'},
+    {draft:['.','and','the','end'],          accept:1, correct:'[end]',bonus:null}
+  ];
+  var finalHost=document.getElementById('w3-final'),scratch=document.getElementById('w3-scratch');
+  var roundLbl=document.getElementById('w3-round');
+  var nextB=document.getElementById('w3-next'),resetB=document.getElementById('w3-reset');
+  var passesEl=document.getElementById('w3-passes'),tokEl=document.getElementById('w3-tokens'),ratioEl=document.getElementById('w3-ratio');
+  var ri=0,passes=0,tokens=0,busy=false,timers=[];
+  var seed=['The','quick','brown','fox'];
+  function clearTimers(){timers.forEach(clearTimeout);timers=[];}
+  function reset(){
+    clearTimers(); ri=0;passes=0;tokens=0;busy=false;
+    finalHost.innerHTML=''; scratch.innerHTML='';
+    seed.forEach(function(w){finalHost.appendChild(chip(w,'tok--seed'));});
+    roundLbl.textContent='round 0';
+    passesEl.textContent='0';tokEl.textContent='0';ratioEl.textContent='—';
+    nextB.disabled=false; nextB.textContent='Draft & verify next round →';
+  }
+  function commit(word,cls){finalHost.appendChild(chip(word,cls));}
+  function schedule(fn,delay){var id=setTimeout(fn,REDUCED?0:delay);timers.push(id);}
+  function runRound(){
+    if(busy||ri>=rounds.length)return;
+    busy=true; nextB.disabled=true;
+    var R=rounds[ri]; ri++;
+    passes++; passesEl.textContent=passes;
+    roundLbl.textContent='round '+ri;
+    scratch.innerHTML='';
+    // show draft guesses
+    var chips=[];
+    R.draft.forEach(function(w,idx){
+      var c=chip(w,'tok--draft tok--pending'); scratch.appendChild(c); chips.push(c);
+      schedule(function(){c.classList.remove('tok--pending');if(!REDUCED)c.classList.add('tok--flash');},120*idx);
+    });
+    var base=(REDUCED?0:120*R.draft.length+250);
+    // verify left to right
+    R.draft.forEach(function(w,idx){
+      schedule(function(){
+        var c=chips[idx];
+        if(idx<R.accept){
+          c.className='tok tok--accept'; c.innerHTML=''; c.appendChild(document.createTextNode(w)); c.appendChild(el('span','mark','keep'));
+          commit(w,'tok--final'); tokens++;
+        } else if(idx===R.accept){
+          if(R.correct==='[end]'){
+            c.className='tok tok--reject'; c.innerHTML=''; c.appendChild(document.createTextNode(w)); c.appendChild(el('span','mark','stop'));
+          } else {
+            c.className='tok tok--reject'; c.innerHTML=''; c.appendChild(document.createTextNode(w)); c.appendChild(el('span','mark','→ '+R.correct));
+            commit(R.correct,'tok--reject'); tokens++;
+          }
+        } else {
+          c.className='tok tok--pending'; c.style.opacity='.25';
+        }
+        tokEl.textContent=tokens;
+        ratioEl.textContent=(tokens/passes).toFixed(2);
+      }, base+ (REDUCED?0:230*idx));
+    });
+    // bonus token if full accept
+    schedule(function(){
+      if(R.bonus){
+        var b=chip(R.bonus,'tok--bonus'); b.appendChild(el('span','mark','bonus'));
+        finalHost.appendChild(b); tokens++;
+        tokEl.textContent=tokens; ratioEl.textContent=(tokens/passes).toFixed(2);
+      }
+      busy=false;
+      if(ri>=rounds.length){nextB.disabled=true;nextB.textContent='sentence complete ✓';}
+      else nextB.disabled=false;
+    }, base + (REDUCED?0:230*R.draft.length) + 200);
+  }
+  nextB.addEventListener('click',runRound);
+  resetB.addEventListener('click',reset);
+  reset();
+})();
+
+/* ==== W4 accept/reject one word ==== */
+(function(){
+  var VOCAB=['lazy','sleepy','tired','brown','big'];
+  // presets: q (draft), p (target)
+  var PRESETS=[
+    {q:[0.55,0.20,0.13,0.08,0.04], p:[0.60,0.15,0.13,0.08,0.04]}, // agrees
+    {q:[0.15,0.62,0.13,0.06,0.04], p:[0.55,0.18,0.15,0.08,0.04]}, // over-eager (drafts sleepy)
+    {q:[0.06,0.08,0.10,0.70,0.06], p:[0.58,0.16,0.14,0.04,0.08]}  // wrong (drafts brown)
+  ];
+  var distHost=document.getElementById('w4-dist');
+  var verdict=document.getElementById('w4-verdict');
+  var draftedEl=document.getElementById('w4-drafted'),chanceEl=document.getElementById('w4-chance'),tallyEl=document.getElementById('w4-tally'),rateEl=document.getElementById('w4-rate');
+  var pills=document.querySelectorAll('#w4-presets .pill');
+  var rollB=document.getElementById('w4-roll'),roll10B=document.getElementById('w4-roll10'),clearB=document.getElementById('w4-clear');
+  var pi=0,kept=0,rolls=0;
+  function residual(p,q){var r=p.map(function(pi2,i){return Math.max(0,pi2-q[i]);});var s=r.reduce(function(a,b){return a+b;},0);return s>0?r.map(function(x){return x/s;}):p.map(function(){return 0;});}
+  function argmax(a){var bi=0;for(var i=1;i<a.length;i++)if(a[i]>a[bi])bi=i;return bi;}
+  function sample(dist){var r=Math.random(),c=0;for(var i=0;i<dist.length;i++){c+=dist[i];if(r<=c)return i;}return dist.length-1;}
+  function render(showRes){
+    var P=PRESETS[pi],q=P.q,p=P.p,res=residual(p,q);
+    var drafted=argmax(q);
+    distHost.innerHTML='';
+    VOCAB.forEach(function(name,i){
+      var row=el('div','dist-row');
+      var nm=el('div','dist-name'+(i===drafted?' picked':''),name);
+      row.appendChild(nm);
+      // stacked mini-tracks: q then p (and res if shown)
+      var wrapper=el('div');
+      wrapper.style.display='flex'; wrapper.style.flexDirection='column'; wrapper.style.gap='3px';
+      [['q',q[i]],['p',p[i]]].concat(showRes?[['res',res[i]]]:[]).forEach(function(pair){
+        var tr=el('div','dist-track'); tr.style.height='11px';
+        var f=el('div','dist-fill '+pair[0]); f.style.width=(pair[1]*100).toFixed(1)+'%';
+        tr.appendChild(f); wrapper.appendChild(tr);
+      });
+      row.appendChild(wrapper);
+      row.appendChild(el('div','dist-pct',(q[i]*100).toFixed(0)+'/'+(p[i]*100).toFixed(0)));
+      distHost.appendChild(row);
+    });
+    var chance=Math.min(1,p[drafted]/q[drafted]);
+    draftedEl.textContent=VOCAB[drafted];
+    chanceEl.textContent=(chance*100).toFixed(0)+'%';
+    return {q:q,p:p,res:res,drafted:drafted,chance:chance};
+  }
+  function setPreset(idx){pi=idx;kept=0;rolls=0;updTally();render(false);verdict.className='verdict';verdict.innerHTML='Drafted word: <span class="big" style="color:var(--draft)">'+VOCAB[argmax(PRESETS[pi].q)]+'</span>. Press roll to adjudicate.';}
+  function updTally(){tallyEl.textContent=kept+' / '+rolls;rateEl.textContent=rolls>0?(kept/rolls*100).toFixed(0)+'% kept':'—';}
+  function doRoll(animate){
+    var st=render(false);
+    var r=Math.random();
+    rolls++;
+    if(r<=st.chance){
+      kept++;
+      verdict.className='verdict accept';
+      verdict.innerHTML='<span class="big" style="color:var(--accept)">KEPT</span> — big model was happy enough with <span class="mono">'+VOCAB[st.drafted]+'</span> (rolled '+r.toFixed(2)+' ≤ '+st.chance.toFixed(2)+').';
+    } else {
+      var newIdx=sample(st.res);
+      verdict.className='verdict reject';
+      verdict.innerHTML='<span class="big" style="color:var(--reject)">CORRECTED</span> — guess <span class="mono">'+VOCAB[st.drafted]+'</span> rejected (rolled '+r.toFixed(2)+' &gt; '+st.chance.toFixed(2)+'). Resampled <span class="mono" style="color:var(--accept)">'+VOCAB[newIdx]+'</span> from the leftover.';
+      render(true);
+    }
+    updTally();
+  }
+  pills.forEach(function(btn){btn.addEventListener('click',function(){pills.forEach(function(b){b.classList.remove('active');});btn.classList.add('active');setPreset(+btn.getAttribute('data-p'));});});
+  rollB.addEventListener('click',function(){doRoll(true);});
+  roll10B.addEventListener('click',function(){for(var i=0;i<20;i++)doRoll(false);});
+  clearB.addEventListener('click',function(){kept=0;rolls=0;updTally();render(false);verdict.className='verdict';verdict.innerHTML='Tally cleared. Roll again.';});
+  setPreset(0);
+})();
+
+/* ==== W5 speedup explorer ==== */
+(function(){
+  var a=document.getElementById('w5-a'),g=document.getElementById('w5-g'),c=document.getElementById('w5-c');
+  var av=document.getElementById('w5-av'),gv=document.getElementById('w5-gv'),cv=document.getElementById('w5-cv');
+  var tpp=document.getElementById('w5-tpp'),cost=document.getElementById('w5-cost'),sp=document.getElementById('w5-sp'),opt=document.getElementById('w5-opt');
+  var spark=document.getElementById('w5-spark'),interp=document.getElementById('w5-interp');
+  function T(al,ga){return (1-Math.pow(al,ga+1))/(1-al);}
+  function speed(al,ga,cc){return T(al,ga)/(1+ga*cc);}
+  function optG(al,cc){var best=1,bv=0;for(var x=1;x<=10;x++){var s=speed(al,x,cc);if(s>bv){bv=s;best=x;}}return best;}
+  function render(){
+    var al=+a.value,ga=+g.value,cc=+c.value;
+    av.textContent=al.toFixed(2);gv.textContent=ga;cv.textContent=cc.toFixed(2);
+    var t=T(al,ga),co=1+ga*cc,s=speed(al,ga,cc),o=optG(al,cc);
+    tpp.textContent=t.toFixed(2);cost.textContent=co.toFixed(2);sp.textContent=s.toFixed(2)+'×';opt.textContent=o;
+    // spark
+    var vals=[];for(var x=1;x<=10;x++)vals.push(speed(al,x,cc));
+    var mx=Math.max.apply(null,vals);
+    spark.innerHTML='';
+    for(var x=1;x<=10;x++){
+      var col=el('div','spark-col');
+      var bar=el('div','spark-bar'+(x===ga?' cur':(x===o?' opt':'')));
+      bar.style.height=(vals[x-1]/mx*100)+'%';
+      col.appendChild(bar); col.appendChild(el('div','spark-x',x));
+      spark.appendChild(col);
+    }
+    var msg;
+    if(s<1.05) msg='Barely faster than plain decoding — drafting cost is eating the gains. Try higher acceptance or a cheaper draft.';
+    else if(ga>o+1) msg='Over-speculating: past the best γ='+o+', extra guesses at this acceptance cost more than they return. Shorten the draft.';
+    else if(ga<o-1) msg='Room to be bolder: acceptance is high enough that longer drafts (toward γ='+o+') would bank more per pass.';
+    else msg='Near the sweet spot for these settings — γ='+o+' squeezes out about '+speed(al,o,cc).toFixed(2)+'× here.';
+    interp.textContent=msg;
+  }
+  [a,g,c].forEach(function(s){s.addEventListener('input',render);});
+  render();
+})();
+</script>
+<script>
+/* Report content height to the parent so the embedding page can size the iframe. */
+(function(){
+  /* Measure the body content box, NOT documentElement.scrollHeight, which
+     returns max(content, viewport) and would ratchet as the parent grows the iframe. */
+  function H(){return Math.max(document.body.scrollHeight,document.body.offsetHeight);}
+  function post(){try{parent.postMessage({__blogEmbed:1,height:H()},'*');}catch(e){}}
+  window.addEventListener('load',post);
+  window.addEventListener('resize',post);
+  document.addEventListener('click',function(){setTimeout(post,60);});
+  document.addEventListener('input',function(){setTimeout(post,60);});
+  if(window.ResizeObserver){try{new ResizeObserver(post).observe(document.body);}catch(e){}}
+  [200,700,1500,3000].forEach(function(d){setTimeout(post,d);});
+  post();
+})();
+</script>
+</body>
+</html>

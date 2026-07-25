@@ -1,0 +1,65 @@
+---
+// Embeds a self-contained interactive essay (its own HTML/CSS/JS in
+// public/blog-embeds) as a full-bleed iframe. The iframe is isolated from the
+// site's styles and scripts, and auto-sizes to its content height via a
+// postMessage the embed sends, so the page scrolls as one document.
+interface Props {
+  src: string;
+  title: string;
+}
+const { src, title } = Astro.props;
+---
+
+<div class="blog-embed">
+  <iframe
+    id="blogEmbedFrame"
+    src={src}
+    title={title}
+    loading="eager"
+    referrerpolicy="no-referrer"
+  ></iframe>
+  <noscript>
+    <p class="blog-embed__noscript">
+      This is an interactive essay that needs JavaScript.
+      <a href={src}>Open it directly</a>.
+    </p>
+  </noscript>
+</div>
+
+<style is:global>
+  .blog-embed {
+    width: 100%;
+    background: #0d141d;
+  }
+  .blog-embed iframe {
+    display: block;
+    width: 100%;
+    height: 100vh;
+    border: 0;
+  }
+  .blog-embed__noscript {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: #cbd5e1;
+    font-family: system-ui, sans-serif;
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    // Add the height listener once; it finds the current frame on each message,
+    // so it keeps working across View Transitions.
+    if (!window.__blogEmbedWired) {
+      window.__blogEmbedWired = true;
+      window.addEventListener("message", function (e) {
+        var d = e.data;
+        if (d && d.__blogEmbed && typeof d.height === "number") {
+          var f = document.getElementById("blogEmbedFrame");
+          if (f) f.style.height = Math.max(d.height, 400) + 2 + "px";
+        }
+      });
+    }
+  })();
+</script>
