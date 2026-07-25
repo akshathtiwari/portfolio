@@ -42,14 +42,16 @@ NOTE for future card fills: after adding `$...$` math, run
 
 ## Later increments — fill the map (one phase per sitting, per source cadence)
 
-- [ ] Phase 2 — transformer block (residual stream, normalization, FFN/activations, GPT-2 anatomy)
-- [ ] Phase 3 — positional info (abs/rel PE, RoPE, long-context scaling)
-- [ ] Phase 4 — attention efficiency (KV cache, MQA/GQA, FlashAttention, sparse, MLA, linear lineage, KDA)
-- [ ] Phase 5 — MoE (fundamentals, load balancing, fine-grained/shared, Stable LatentMoE*)
+ARCHITECTURE HALF COMPLETE (26/51) — Phases 0–5 all fully derived + deployed.
+
+- [x] Phase 2 — transformer block (residual stream, normalization, FFN/activations, GPT-2 anatomy) — commit a397b34
+- [x] Phase 3 — positional info (abs/rel PE, RoPE, long-context scaling) — commit a397b34
+- [x] Phase 4 — attention efficiency (KV cache, MQA/GQA, FlashAttention, sparse, MLA, linear lineage, KDA) — commit 9bbdeed
+- [x] Phase 5 — MoE (fundamentals, load balancing, fine-grained/shared, Stable LatentMoE*) — commit 5a049e8
 - [ ] Phase 6 — pretraining (scaling laws, data, optimizers, precision, parallelism, stability)
 - [ ] Phase 7 — post-training (SFT/LoRA, RLHF/DPO, RLVR/GRPO, agentic)
 - [ ] Phase 8 — inference/serving (prefill/decode, serving systems, spec decoding, quant, MTP, giant MoE)
-- [ ] Phase 9 — timeline teardowns (GPT-2→GPT-3 … Kimi K3)
+- [ ] Phase 9 — timeline teardowns (GPT-2→GPT-3 … Kimi K3) [kimi-k3 card: add inline awaitbox like stable-latentmoe]
 
 \* deepen once the K3 technical report lands (2026-07-27).
 
