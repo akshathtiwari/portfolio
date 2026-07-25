@@ -42,16 +42,19 @@ NOTE for future card fills: after adding `$...$` math, run
 
 ## Later increments — fill the map (one phase per sitting, per source cadence)
 
-ARCHITECTURE HALF COMPLETE (26/51) — Phases 0–5 all fully derived + deployed.
+MAP COMPLETE — 51/51 cards fully derived and deployed (all phases).
 
-- [x] Phase 2 — transformer block (residual stream, normalization, FFN/activations, GPT-2 anatomy) — commit a397b34
-- [x] Phase 3 — positional info (abs/rel PE, RoPE, long-context scaling) — commit a397b34
-- [x] Phase 4 — attention efficiency (KV cache, MQA/GQA, FlashAttention, sparse, MLA, linear lineage, KDA) — commit 9bbdeed
-- [x] Phase 5 — MoE (fundamentals, load balancing, fine-grained/shared, Stable LatentMoE*) — commit 5a049e8
-- [ ] Phase 6 — pretraining (scaling laws, data, optimizers, precision, parallelism, stability)
-- [ ] Phase 7 — post-training (SFT/LoRA, RLHF/DPO, RLVR/GRPO, agentic)
-- [ ] Phase 8 — inference/serving (prefill/decode, serving systems, spec decoding, quant, MTP, giant MoE)
-- [ ] Phase 9 — timeline teardowns (GPT-2→GPT-3 … Kimi K3) [kimi-k3 card: add inline awaitbox like stable-latentmoe]
+- [x] Phase 2 — transformer block — commit a397b34
+- [x] Phase 3 — positional info — commit a397b34
+- [x] Phase 4 — attention efficiency (7 cards) — commit 9bbdeed
+- [x] Phase 5 — MoE (Stable LatentMoE has inline awaitbox) — commit 5a049e8
+- [x] Phase 6 — pretraining — commit ef7a755
+- [x] Phase 7 — post-training (full DPO + GRPO derivations) — commit 83a5f51
+- [x] Phase 8 — inference/serving — commit 33b864c
+- [x] Phase 9 — timeline teardowns (kimi-k3 has inline awaitbox) — commit 36e720c
+
+Only remaining work is deepening the two await cards (stable-latentmoe, kimi-k3)
+once the Kimi K3 technical report lands 2026-07-27.
 
 \* deepen once the K3 technical report lands (2026-07-27).
 
