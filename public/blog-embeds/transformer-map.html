@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Transformer Evolution Map · GPT-2 to Kimi K3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>
+:root{
+  --bg:#101119;
+  --bg-2:#0b0c12;
+  --panel:#191b25;
+  --panel-2:#20222e;
+  --line:#2b2e3c;
+  --line-2:#3b3f52;
+  --ink:#eef0f7;
+  --dim:#a9adbe;
+  --faint:#71768c;
+  --accent:#8b9bff;
+  --accent-soft:rgba(139,155,255,.16);
+  /* category accents (from the source tag palette) */
+  --f:#d8d6cc; --f-bg:#3a3a37; --f-ink:#e9e7dd;
+  --a:#cecbf6; --a-bg:#332c66; --a-ink:#e2e0fb;
+  --t:#9fe1cb; --t-bg:#0d4638; --t-ink:#c3efe0;
+  --i:#f5c4b3; --i-bg:#5c2413; --i-ink:#f8d6c9;
+  --radius:12px;
+  --f-display:'Space Grotesk', system-ui, sans-serif;
+  --f-body:'Inter', system-ui, sans-serif;
+  --f-mono:'JetBrains Mono', ui-monospace, monospace;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--f-body); line-height:1.6;
+  -webkit-font-smoothing:antialiased; font-size:15px;
+  background-image:radial-gradient(1200px 600px at 80% -10%, rgba(139,155,255,.08), transparent 60%);
+}
+.wrap{max-width:940px; margin:0 auto; padding:40px 22px 72px;}
+a{color:var(--accent); text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ---- header ---- */
+.eyebrow{font-family:var(--f-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent);}
+h1.title{font-family:var(--f-display); font-weight:700; font-size:clamp(26px,4.4vw,40px); line-height:1.1; margin:10px 0 12px; letter-spacing:-.01em;}
+.lede{color:var(--dim); font-size:16px; max-width:66ch; margin:0 0 4px;}
+.lede strong{color:var(--ink); font-weight:600;}
+.meta-row{display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; margin:20px 0 6px;}
+.progress{display:inline-flex; align-items:center; gap:9px; font-family:var(--f-mono); font-size:12px; color:var(--dim); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:5px 12px;}
+.progress b{color:var(--ink);}
+.progress .bar{width:74px; height:5px; border-radius:3px; background:var(--line-2); overflow:hidden;}
+.progress .bar span{display:block; height:100%; background:linear-gradient(90deg,var(--accent),#a6e3c9);}
+.legend{display:flex; gap:8px; flex-wrap:wrap; font-size:12px;}
+.tag{display:inline-block; font-size:11px; font-weight:500; padding:1px 8px; border-radius:8px; font-family:var(--f-mono); letter-spacing:.01em;}
+.tg-f{background:var(--f-bg); color:var(--f-ink);}
+.tg-a{background:var(--a-bg); color:var(--a-ink);}
+.tg-t{background:var(--t-bg); color:var(--t-ink);}
+.tg-i{background:var(--i-bg); color:var(--i-ink);}
+.howto{margin:18px 0 34px; padding:13px 16px; border:1px solid var(--line); border-left:2px solid var(--accent); border-radius:8px; background:var(--panel); color:var(--dim); font-size:13.5px;}
+.howto b{color:var(--ink);}
+
+/* ---- phases ---- */
+.ph{margin:0 0 30px;}
+.ph-head{display:flex; align-items:baseline; gap:11px; margin:0 0 3px;}
+.ph-num{font-family:var(--f-mono); font-size:12px; color:var(--faint);}
+.ph-title{font-family:var(--f-display); font-size:19px; font-weight:600; margin:0; letter-spacing:-.01em;}
+.ph-sub{font-size:13.5px; color:var(--dim); margin:0 0 14px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(178px,1fr)); gap:9px;}
+.nd{
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+  text-align:left; width:100%; font:inherit; color:inherit;
+  border:1px solid var(--line); border-radius:var(--radius);
+  padding:11px 13px 10px; cursor:pointer; background:var(--panel);
+  transition:background .15s, border-color .15s, transform .05s;
+}
+.nd:hover{background:var(--panel-2); border-color:var(--line-2);}
+.nd:active{transform:translateY(1px);}
+.nd:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.nd .t1{font-size:13.5px; font-weight:600; line-height:1.3;}
+.nd .t2{font-size:12px; color:var(--dim); margin-top:1px; line-height:1.35;}
+.nd .tag{margin-top:8px;}
+.nd[data-status="wip"] .t1::after{content:"·"; color:var(--faint); margin-left:5px;}
+.nd.is-active{border-color:var(--accent); background:var(--panel-2); box-shadow:0 0 0 1px var(--accent) inset;}
+.nd .dot{display:inline-block; width:6px; height:6px; border-radius:50%; margin-left:6px; vertical-align:middle;}
+.nd[data-status="done"] .dot{background:#7fdcb6;}
+.nd[data-status="wip"] .dot{background:var(--faint);}
+
+/* ---- detail panel ---- */
+.phase-detail{margin-top:10px; border:1px solid var(--line-2); border-radius:var(--radius); background:var(--bg-2); overflow:hidden;}
+.phase-detail[hidden]{display:none;}
+.pd-inner{padding:22px 22px 24px;}
+@media (prefers-reduced-motion:no-preference){
+  .pd-inner{animation:fade .22s ease;}
+}
+@keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+.pd-eyebrow{font-family:var(--f-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin:0 0 4px;}
+.pd-title{font-family:var(--f-display); font-size:20px; font-weight:600; margin:0 0 14px; letter-spacing:-.01em;}
+.derivation{font-size:14.5px; color:#dfe2ec;}
+.derivation h4{font-family:var(--f-display); font-size:14px; font-weight:600; color:var(--ink); margin:20px 0 6px; letter-spacing:.01em;}
+.derivation p{margin:0 0 11px;}
+.derivation ul{margin:0 0 12px; padding-left:20px;}
+.derivation li{margin:0 0 6px;}
+.derivation strong{color:var(--ink); font-weight:600;}
+.derivation code{font-family:var(--f-mono); font-size:.9em; background:var(--panel); padding:1px 5px; border-radius:5px; color:#e6e8f2;}
+.derivation .katex{color:var(--ink);}
+.derivation .katex-display{margin:14px 0; overflow-x:auto; overflow-y:hidden; padding:2px 0;}
+.derivation .note{border-left:2px solid var(--line-2); padding:2px 0 2px 14px; color:var(--dim); font-size:13.5px; margin:14px 0;}
+.derivation .next{margin-top:18px; padding-top:13px; border-top:1px dashed var(--line); font-size:13px; color:var(--dim);}
+.derivation .next b{color:var(--ink);}
+.wipblurb{font-size:14.5px; color:#dfe2ec;}
+.wipchip{display:inline-flex; align-items:center; gap:7px; font-family:var(--f-mono); font-size:11.5px; color:var(--dim); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:4px 11px; margin:6px 0 2px;}
+.wipchip::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--faint);}
+.await{color:var(--i); font-weight:500;}
+.awaitbox{margin:12px 0 2px; padding:10px 13px; border:1px solid var(--i-bg); border-left:2px solid var(--i); border-radius:8px; background:rgba(92,36,19,.18); font-size:13px; color:var(--i-ink);}
+
+/* ---- copy prompt ---- */
+.card-prompt{margin-top:20px; padding-top:15px; border-top:1px solid var(--line);}
+.card-prompt .lbl{font-family:var(--f-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--faint); display:block; margin-bottom:8px;}
+.ask{display:inline-flex; align-items:center; gap:8px; font:inherit; font-size:13px; font-weight:500; color:var(--ink); background:var(--accent-soft); border:1px solid var(--line-2); border-radius:9px; padding:8px 13px; cursor:pointer; transition:border-color .15s, background .15s;}
+.ask:hover{border-color:var(--accent); background:rgba(139,155,255,.24);}
+.ask:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.ask svg{width:14px; height:14px; opacity:.85;}
+.promptbox{margin-top:10px; font-family:var(--f-mono); font-size:12px; color:var(--dim); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:11px 13px; line-height:1.55; display:none;}
+.promptbox.show{display:block;}
+
+/* ---- timeline (phase 9) ---- */
+.tl{border-left:2px solid var(--line-2); margin-left:7px; padding-left:22px;}
+.tl-item{position:relative; display:block; width:100%; text-align:left; font:inherit; color:inherit; background:none; border:0; padding:0 0 4px; margin:0 0 16px; cursor:pointer;}
+.tl-item:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:6px;}
+.tl-dot{position:absolute; left:-27px; top:5px; width:9px; height:9px; border-radius:50%; background:var(--faint); border:2px solid var(--bg);}
+.tl-item.is-active .tl-dot{background:var(--accent);}
+.tl-yr{font-family:var(--f-mono); font-size:11px; color:var(--faint);}
+.tl-name{font-family:var(--f-display); font-size:15px; font-weight:600; margin:1px 0; transition:color .15s;}
+.tl-item:hover .tl-name, .tl-item.is-active .tl-name{color:var(--accent);}
+.tl-inn{font-size:12.5px; color:var(--dim); line-height:1.5;}
+
+footer.src{margin-top:44px; padding-top:20px; border-top:1px solid var(--line); font-size:12.5px; color:var(--faint);}
+footer.src b{color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Learning map · foundations → frontier</p>
+    <h1 class="title">Transformer Evolution: GPT-2 → Kimi K3</h1>
+    <p class="lede">One <strong>strictly cumulative</strong> path through the ideas that turn a 2019 decoder-only baseline into a 2.8-trillion-parameter frontier model. Every card decomposes into things derived earlier: the <span style="font-family:var(--f-mono)">√d<sub>k</sub></span> argument in Phase&nbsp;1 is why QK-clip in Phase&nbsp;6 makes sense; the KV-cache math in Phase&nbsp;4 is why MLA, KDA and modern serving feel inevitable rather than arbitrary.</p>
+
+    <div class="meta-row">
+      <span class="progress" title="Cards with a full derivation vs. cards still to be filled in">
+        <span class="bar"><span id="progBar" style="width:0%"></span></span>
+        <span><b id="progDone">0</b> of <b id="progTotal">0</b> derivations complete</span>
+      </span>
+      <span class="legend">
+        <span class="tag tg-f">foundations</span>
+        <span class="tag tg-a">architecture</span>
+        <span class="tag tg-t">training</span>
+        <span class="tag tg-i">inference</span>
+      </span>
+    </div>
+
+    <div class="howto">
+      <b>How to use this map.</b> Tap any card to expand its derivation in place. Cards with a green dot are fully worked; the rest show an orientation and are being filled in one phase at a time. Every card also carries its original teaching prompt — hit <b>“Ask your own model this”</b> to copy it and go deeper with any LLM. Read it as a spine: master Phase&nbsp;0–1 cold, then each later phase is a variation on them.
+    </div>
+  </header>
+
+  <!-- ============ PHASE 0 ============ -->
+  <section class="ph" data-phase="p0">
+    <div class="ph-head"><span class="ph-num">Phase 0</span><h3 class="ph-title">Bedrock — before any transformer</h3></div>
+    <p class="ph-sub">The statistical machinery everything else stands on.</p>
+    <div class="grid">
+      <button class="nd" data-card="lm-next-token" data-status="done" data-prompt="Teach me language modeling as next-token prediction from scratch: chain rule of probability, autoregressive factorization, cross-entropy and NLL loss derivation, and perplexity. Full math with a worked example."><span class="t1">LM as next-token prediction<span class="dot"></span></span><span class="t2">Chain rule, NLL, perplexity</span><span class="tag tg-f">foundations</span></button>
+      <button class="nd" data-card="tokenization" data-status="done" data-prompt="Teach me tokenization in full depth: character vs word vs subword, the BPE algorithm step by step with a worked merge example, byte-level BPE (GPT-2), SentencePiece/Unigram, vocab size tradeoffs, and why tokenization causes weird LLM failures."><span class="t1">Tokenization<span class="dot"></span></span><span class="t2">BPE, byte-level, SentencePiece</span><span class="tag tg-f">foundations</span></button>
+      <button class="nd" data-card="embeddings" data-status="done" data-prompt="Teach me token embeddings from scratch: one-hot to dense vectors, the embedding matrix as a lookup, what embedding dimensions mean geometrically, tied input/output embeddings (weight tying), and the unembedding + softmax head."><span class="t1">Embeddings<span class="dot"></span></span><span class="t2">Lookup, geometry, weight tying</span><span class="tag tg-f">foundations</span></button>
+      <button class="nd" data-card="pre-transformer" data-status="done" data-prompt="Give me the pre-transformer context: n-grams, RNNs and LSTMs, seq2seq with encoder-decoder, Bahdanau attention, and exactly which bottlenecks motivated Attention Is All You Need in 2017."><span class="t1">Pre-transformer era<span class="dot"></span></span><span class="t2">RNN, LSTM, seq2seq bottleneck</span><span class="tag tg-f">foundations</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p0" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 1 ============ -->
+  <section class="ph" data-phase="p1">
+    <div class="ph-head"><span class="ph-num">Phase 1</span><h3 class="ph-title">Attention — the core mechanism</h3></div>
+    <p class="ph-sub">Master this cold before moving on; everything after is a variation.</p>
+    <div class="grid">
+      <button class="nd" data-card="sdpa" data-status="done" data-prompt="Teach me scaled dot-product attention with complete math: what Q, K, V projections actually are, why dot product measures similarity, why we divide by sqrt(d_k) (derive the variance argument), softmax row-wise, and a full worked numeric example with a tiny 3-token sequence."><span class="t1">Scaled dot-product attention<span class="dot"></span></span><span class="t2">QKV, √d_k, worked example</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="causal-mask" data-status="done" data-prompt="Teach me causal masking in decoder-only transformers: why autoregressive generation needs it, how the -inf mask is applied before softmax, training vs inference behavior, and teacher forcing."><span class="t1">Causal masking<span class="dot"></span></span><span class="t2">-inf mask, teacher forcing</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="mha" data-status="done" data-prompt="Teach me multi-head attention in full: why multiple heads instead of one big one, head dimension splitting, the output projection W_O, what different heads learn (induction heads, positional heads), and the exact tensor shapes through the whole computation."><span class="t1">Multi-head attention<span class="dot"></span></span><span class="t2">Head splitting, W_O, shapes</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="quadratic" data-status="done" data-prompt="Teach me the quadratic complexity of attention rigorously: derive the O(n^2 d) compute and O(n^2) memory of the attention matrix, where it bites in prefill vs decode, and why this single fact drives nearly all architecture research from 2019 to Kimi K3."><span class="t1">Quadratic complexity<span class="dot"></span></span><span class="t2">O(n²) — the central villain</span><span class="tag tg-a">architecture</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p1" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 2 ============ -->
+  <section class="ph" data-phase="p2">
+    <div class="ph-head"><span class="ph-num">Phase 2</span><h3 class="ph-title">The transformer block</h3></div>
+    <p class="ph-sub">Anatomy of one layer, and how each part evolved from GPT-2 to now.</p>
+    <div class="grid">
+      <button class="nd" data-card="residual" data-status="wip" data-prompt="Teach me residual connections in transformers deeply: the residual stream view, why gradients flow through skips, identity initialization intuition, and how residual streams became the dominant mental model in interpretability. Then connect this to why Kimi K3 introduced Attention Residuals (AttnRes) across depth."><span class="t1">Residual stream<span class="dot"></span></span><span class="t2">Skip connections, gradient flow</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="norm" data-status="wip" data-prompt="Teach me normalization evolution in LLMs: LayerNorm math from scratch, post-LN (original 2017) vs pre-LN (GPT-2) and why pre-LN stabilizes deep training, then RMSNorm (LLaMA onward) — derive it, explain what it drops and why that is fine, plus QK-norm in recent models."><span class="t1">Normalization<span class="dot"></span></span><span class="t2">Post-LN → pre-LN → RMSNorm</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="ffn" data-status="wip" data-prompt="Teach me the transformer FFN/MLP block and activation evolution: why the 4x expansion, ReLU → GELU (GPT-2) → SwiGLU (LLaMA, Qwen) with full GLU math, and newer variants like Kimi K3s Sigmoid Tanh Unit (SiTU). Include why FFN holds most parameters and the key-value memory interpretation."><span class="t1">FFN and activations<span class="dot"></span></span><span class="t2">GELU → SwiGLU → SiTU</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="gpt2-anatomy" data-status="wip" data-prompt="Walk me through the complete GPT-2 architecture end to end as the reference baseline: 124M config, layer count, d_model, heads, learned positional embeddings, pre-LN blocks, exact forward pass tensor by tensor, and its training setup (WebText, 40GB). This is my anchor model for everything later."><span class="t1">GPT-2 full anatomy<span class="dot"></span></span><span class="t2">The reference baseline, 2019</span><span class="tag tg-a">architecture</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p2" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 3 ============ -->
+  <section class="ph" data-phase="p3">
+    <div class="ph-head"><span class="ph-num">Phase 3</span><h3 class="ph-title">Positional information</h3></div>
+    <p class="ph-sub">How models know token order, and how context windows got long.</p>
+    <div class="grid">
+      <button class="nd" data-card="abs-rel-pe" data-status="wip" data-prompt="Teach me absolute positional encodings: learned embeddings (GPT-2) vs sinusoidal (original transformer) with the full sinusoid math, why they fail to extrapolate, and relative position schemes (Shaw, T5 bias) that came next."><span class="t1">Absolute and relative PE<span class="dot"></span></span><span class="t2">Learned, sinusoidal, T5 bias</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="rope" data-status="wip" data-prompt="Teach me RoPE (rotary position embeddings) in complete depth: the 2D rotation view, complex number formulation, why rotating Q and K makes attention depend only on relative position, the base frequency theta, and why RoPE became universal from LLaMA onward. Full derivation."><span class="t1">RoPE<span class="dot"></span></span><span class="t2">Rotations, relative by design</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="long-context" data-status="wip" data-prompt="Teach me context extension techniques on top of RoPE: position interpolation, NTK-aware scaling, YaRN, and ALiBi as an alternative — the math of each, and how models went from 1K (GPT-2) to 128K (Llama 3, DeepSeek) to 1M tokens (Kimi K3)."><span class="t1">Long context scaling<span class="dot"></span></span><span class="t2">PI, NTK, YaRN, ALiBi → 1M</span><span class="tag tg-a">architecture</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p3" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 4 ============ -->
+  <section class="ph" data-phase="p4">
+    <div class="ph-head"><span class="ph-num">Phase 4</span><h3 class="ph-title">Attention efficiency — the long war on O(n²)</h3></div>
+    <p class="ph-sub">The single richest evolution track, ending at KDA in Kimi K3.</p>
+    <div class="grid">
+      <button class="nd" data-card="kv-cache" data-status="wip" data-prompt="Teach me the KV cache from first principles: why decode recomputes nothing, exact memory formula (layers x heads x d_head x 2 x seq x batch x bytes), why KV cache — not compute — became the decode bottleneck, and compute worked numbers for a 7B model at 32K context."><span class="t1">KV cache<span class="dot"></span></span><span class="t2">Decode memory bottleneck</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="mqa-gqa" data-status="wip" data-prompt="Teach me MQA and GQA: multi-query attention (one KV head), grouped-query attention as the middle ground, exact KV cache savings math, quality tradeoffs, and which models used which (PaLM, Mistral, Llama 2 70B, Qwen)."><span class="t1">MQA → GQA<span class="dot"></span></span><span class="t2">Share KV heads, shrink cache</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="flashattention" data-status="wip" data-prompt="Teach me FlashAttention v1/v2/v3 deeply: why attention is memory-bandwidth bound, HBM vs SRAM, tiling, online softmax with the running max/sum trick derived fully, and recomputation in backward. This is exact attention, just IO-aware."><span class="t1">FlashAttention<span class="dot"></span></span><span class="t2">Tiling, online softmax, IO-aware</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="sliding-sparse" data-status="wip" data-prompt="Teach me sliding window and sparse attention: Mistral sliding window + rolling KV cache, attention sinks/StreamingLLM, and DeepSeek NSA / native sparse attention — the mechanics and what global information each sacrifices or preserves."><span class="t1">Sliding window and sparse<span class="dot"></span></span><span class="t2">Mistral SWA, sinks, NSA</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="mla" data-status="wip" data-prompt="Teach me MLA (multi-head latent attention) from DeepSeek-V2/V3 in complete depth: low-rank KV compression into a latent vector, up-projection at compute time, decoupled RoPE keys, exact cache savings vs GQA, and the Gated MLA variant Kimi K3 uses."><span class="t1">MLA<span class="dot"></span></span><span class="t2">Latent KV compression</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="linear-attention" data-status="wip" data-prompt="Teach me linear attention and state-space lineage as the road to KDA: kernel trick removing softmax, linear attention as an RNN with a matrix state, gating (GLA), Mamba/Mamba2 selective state spaces, DeltaNet and the delta rule, Gated DeltaNet — full recurrence math for each."><span class="t1">Linear attention lineage<span class="dot"></span></span><span class="t2">RNN state, Mamba, DeltaNet</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="kda" data-status="wip" data-prompt="Teach me Kimi Delta Attention (KDA) from the Kimi Linear paper in full depth: how it extends Gated DeltaNet with channel-wise (per-dimension) forget gates vs head-wise, the Diagonal-Plus-Low-Rank (DPLR) transition matrices, the chunkwise-parallel algorithm, the hybrid 3:1 KDA-to-full-attention layer ratio, and why it gives ~6x faster decoding at 1M context in Kimi K3."><span class="t1">Kimi Delta Attention<span class="dot"></span></span><span class="t2">Channel-wise gates, DPLR, hybrid</span><span class="tag tg-a">architecture</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p4" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 5 ============ -->
+  <section class="ph" data-phase="p5">
+    <div class="ph-head"><span class="ph-num">Phase 5</span><h3 class="ph-title">Mixture of Experts</h3></div>
+    <p class="ph-sub">Scaling parameters without scaling compute — dense to 16-of-896.</p>
+    <div class="grid">
+      <button class="nd" data-card="moe-fundamentals" data-status="wip" data-prompt="Teach me MoE fundamentals from scratch: replacing the FFN with N expert FFNs, the router/gating network math, top-k routing, token dropping and capacity factor, and the total-vs-active parameter distinction with concrete numbers from Mixtral 8x7B."><span class="t1">MoE fundamentals<span class="dot"></span></span><span class="t2">Router, top-k, active params</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="moe-balancing" data-status="wip" data-prompt="Teach me MoE load balancing in depth: why routers collapse onto few experts, the auxiliary load-balancing loss math, DeepSeek-V3s auxiliary-loss-free bias method, and Kimi K3s Quantile Balancing which derives expert allocation from router-score quantiles."><span class="t1">Load balancing<span class="dot"></span></span><span class="t2">Aux loss → loss-free → quantile</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="moe-finegrained" data-status="wip" data-prompt="Teach me fine-grained and shared experts: DeepSeekMoE splitting experts smaller and routing more of them, always-on shared experts, expert parallelism and all-to-all communication costs, and the sparsity trend from Mixtral (2 of 8) to DeepSeek-V3 (8 of 256) to Kimi K2 (8 of 384) to K3 (16 of 896)."><span class="t1">Fine-grained and shared<span class="dot"></span></span><span class="t2">DeepSeekMoE, sparsity trend</span><span class="tag tg-a">architecture</span></button>
+      <button class="nd" data-card="stable-latentmoe" data-status="wip" data-prompt="Teach me Kimi K3s Stable LatentMoE framework: what is known about how it stabilizes extreme sparsity at 16-of-896 experts, why routing and optimization become first-order problems at that sparsity, and how it connects to the 2.5x scaling efficiency claim over K2. Note where details await the technical report."><span class="t1">Stable LatentMoE<span class="dot"></span></span><span class="t2">K3, 16 of 896 experts</span><span class="tag tg-a">architecture</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p5" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 6 ============ -->
+  <section class="ph" data-phase="p6">
+    <div class="ph-head"><span class="ph-num">Phase 6</span><h3 class="ph-title">Pretraining</h3></div>
+    <p class="ph-sub">Data, scaling laws, optimizers, precision, parallelism.</p>
+    <div class="grid">
+      <button class="nd" data-card="scaling-laws" data-status="wip" data-prompt="Teach me LLM scaling laws rigorously: Kaplan 2020 power laws, Chinchilla compute-optimal (20 tokens per param) with the derivation, why Llama-style overtraining beats Chinchilla for deployment, and data-constrained scaling today."><span class="t1">Scaling laws<span class="dot"></span></span><span class="t2">Kaplan → Chinchilla → beyond</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="data-pipeline" data-status="wip" data-prompt="Teach me the pretraining data pipeline: web crawls, dedup (MinHash), quality filtering and classifiers, data mixtures and curriculum/annealing phases, synthetic data, and multi-epoch tradeoffs. Use Llama 3 and DeepSeek-V3 recipes as case studies."><span class="t1">Data pipeline<span class="dot"></span></span><span class="t2">Dedup, filtering, mixtures</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="optimizers" data-status="wip" data-prompt="Teach me the optimizer evolution for LLMs: SGD to Adam (full math), AdamW decoupled weight decay, LR warmup and cosine/WSD schedules, gradient clipping, then Muon with Newton-Schulz orthogonalization, MuonClip with QK-clip (Kimi K2), and Per-Head Muon (K3). Derive everything."><span class="t1">Optimizers<span class="dot"></span></span><span class="t2">AdamW → Muon → MuonClip</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="precision" data-status="wip" data-prompt="Teach me mixed precision and quantized training: FP32/FP16 loss scaling, BF16, FP8 training in DeepSeek-V3 with fine-grained scaling, and Kimi K3s quantization-aware training with MXFP4 weights and MXFP8 activations — what MX block formats are and why train low-precision natively."><span class="t1">Precision<span class="dot"></span></span><span class="t2">BF16 → FP8 → MXFP4 QAT</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="parallelism" data-status="wip" data-prompt="Teach me distributed training parallelism completely: data parallel, ZeRO 1/2/3 and FSDP, tensor parallel with the Megatron column/row split math, pipeline parallel and bubbles, expert parallel for MoE, context/sequence parallel, and how a real 3D/4D layout is chosen for a trillion-param run."><span class="t1">Parallelism<span class="dot"></span></span><span class="t2">DP, ZeRO, TP, PP, EP</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="training-stability" data-status="wip" data-prompt="Teach me training stability at scale: loss spikes and their causes, logit explosion and why QK-clip exists, z-loss, init schemes (muP basics), gradient norm monitoring, and checkpoint-restart practice in frontier runs."><span class="t1">Training stability<span class="dot"></span></span><span class="t2">Spikes, QK-clip, z-loss, muP</span><span class="tag tg-t">training</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p6" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 7 ============ -->
+  <section class="ph" data-phase="p7">
+    <div class="ph-head"><span class="ph-num">Phase 7</span><h3 class="ph-title">Post-training and reasoning</h3></div>
+    <p class="ph-sub">From base model to assistant to reasoner.</p>
+    <div class="grid">
+      <button class="nd" data-card="sft-lora" data-status="wip" data-prompt="Teach me SFT and instruction tuning: chat templates and special tokens, loss masking on prompts, data quality vs quantity (LIMA), and how a base model becomes an instruct model. Include full fine-tuning vs LoRA with the low-rank math."><span class="t1">SFT and LoRA<span class="dot"></span></span><span class="t2">Chat templates, loss masking</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="rlhf-dpo" data-status="wip" data-prompt="Teach me RLHF end to end: reward model training with Bradley-Terry, PPO for LLMs (clipped objective, KL penalty, value model), why it is unstable and expensive, then DPO — derive it fully from the RLHF objective — and its variants."><span class="t1">RLHF and DPO<span class="dot"></span></span><span class="t2">Reward models, PPO, DPO math</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="rlvr" data-status="wip" data-prompt="Teach me RL with verifiable rewards and reasoning training: GRPO derived fully (group-relative advantages, no value model), the DeepSeek-R1 and R1-Zero recipe, emergent long chain-of-thought, test-time scaling, and distilling reasoning into smaller models like Qwen3."><span class="t1">RLVR and reasoning RL<span class="dot"></span></span><span class="t2">GRPO, R1 recipe, long CoT</span><span class="tag tg-t">training</span></button>
+      <button class="nd" data-card="agentic" data-status="wip" data-prompt="Teach me agentic post-training: tool calling formats, multi-turn agentic RL, long-horizon task training as done for Kimi K2/K3 style agentic models, and environment/verifier design for coding agents."><span class="t1">Agentic training<span class="dot"></span></span><span class="t2">Tools, long-horizon RL</span><span class="tag tg-t">training</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p7" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 8 ============ -->
+  <section class="ph" data-phase="p8">
+    <div class="ph-head"><span class="ph-num">Phase 8</span><h3 class="ph-title">Inference and serving</h3></div>
+    <p class="ph-sub">Your home turf — but rebuilt from first principles.</p>
+    <div class="grid">
+      <button class="nd" data-card="prefill-decode" data-status="wip" data-prompt="Teach me prefill vs decode from first principles: compute-bound vs memory-bandwidth-bound analysis with arithmetic intensity math, TTFT vs TPOT, chunked prefill, and prefill/decode disaggregation in modern serving stacks."><span class="t1">Prefill vs decode<span class="dot"></span></span><span class="t2">Arithmetic intensity, TTFT/TPOT</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="serving-systems" data-status="wip" data-prompt="Teach me modern serving systems internals: continuous batching (Orca), PagedAttention in vLLM with the virtual-memory analogy, RadixAttention prefix caching in SGLang, and KV cache offloading — with when each matters."><span class="t1">Serving systems<span class="dot"></span></span><span class="t2">Continuous batching, paged KV</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="spec-decoding" data-status="wip" data-prompt="Teach me speculative decoding as a complete field: rejection sampling correctness proof, draft models, Medusa, EAGLE 1/2/3 feature-level drafting, and tree attention verification. Connect to DFlash and DSpark which I have studied, placing them precisely in this taxonomy."><span class="t1">Speculative decoding<span class="dot"></span></span><span class="t2">EAGLE, trees, DFlash, DSpark</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="quantization" data-status="wip" data-prompt="Teach me post-training quantization deeply: INT8 with outlier problem (LLM.int8), GPTQ second-order math, AWQ activation-aware scaling, FP8/FP4 and MX microscaling formats, KV cache quantization, and quality-vs-throughput tradeoffs."><span class="t1">Quantization<span class="dot"></span></span><span class="t2">GPTQ, AWQ, FP4, KV quant</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="mtp" data-status="wip" data-prompt="Teach me MTP — multi-token prediction heads as in DeepSeek-V3 and Kimi K2/K3 lineage: the training objective, how MTP heads double as self-speculative drafters at inference, and measured acceptance rates."><span class="t1">Multi-token prediction<span class="dot"></span></span><span class="t2">MTP heads, self-drafting</span><span class="tag tg-i">inference</span></button>
+      <button class="nd" data-card="serving-moe" data-status="wip" data-prompt="Teach me serving trillion-parameter MoE models: expert-parallel inference, all-to-all overlap, wide-EP and supernode configurations (64+ accelerators as recommended for Kimi K3), and why hybrid linear attention like KDA changes the serving memory equation at 1M context."><span class="t1">Serving giant MoE<span class="dot"></span></span><span class="t2">Wide EP, supernodes, 1M ctx</span><span class="tag tg-i">inference</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p8" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <!-- ============ PHASE 9 — TIMELINE ============ -->
+  <section class="ph" data-phase="p9">
+    <div class="ph-head"><span class="ph-num">Phase 9</span><h3 class="ph-title">Model evolution timeline</h3></div>
+    <p class="ph-sub">Tap any model for a teardown and what it changed. Each name decomposes into the phases above.</p>
+    <div class="tl">
+      <button class="tl-item" data-card="gpt2-gpt3" data-status="wip" data-prompt="Full architecture teardown of GPT-2 (2019) and its role as the decoder-only template, plus what GPT-3 (2020) changed at 175B and what in-context learning revealed."><span class="tl-dot"></span><span class="tl-yr">2019–20</span><span class="tl-name">GPT-2 → GPT-3</span><span class="tl-inn">Decoder-only template, scale, in-context learning</span></button>
+      <button class="tl-item" data-card="chinchilla-llama" data-status="wip" data-prompt="Teardown of Chinchilla (2022) and the compute-optimal rethink, then LLaMA 1 (2023): RoPE + RMSNorm + SwiGLU as the new standard recipe, and why open weights changed everything."><span class="tl-dot"></span><span class="tl-yr">2022–23</span><span class="tl-name">Chinchilla → LLaMA</span><span class="tl-inn">Compute-optimal training; RoPE + RMSNorm + SwiGLU standard</span></button>
+      <button class="tl-item" data-card="mistral-mixtral" data-status="wip" data-prompt="Teardown of Mistral 7B (sliding window attention, GQA) and Mixtral 8x7B (open sparse MoE) — what each changed and why they punched above their size."><span class="tl-dot"></span><span class="tl-yr">2023</span><span class="tl-name">Mistral → Mixtral</span><span class="tl-inn">Sliding window + GQA; open MoE goes mainstream</span></button>
+      <button class="tl-item" data-card="deepseek-v2" data-status="wip" data-prompt="Teardown of DeepSeek-V2: MLA latent KV compression and DeepSeekMoE fine-grained experts — the two ideas that defined the current efficient-frontier recipe."><span class="tl-dot"></span><span class="tl-yr">2024</span><span class="tl-name">DeepSeek-V2</span><span class="tl-inn">MLA + fine-grained MoE with shared experts</span></button>
+      <button class="tl-item" data-card="deepseek-v3-r1" data-status="wip" data-prompt="Teardown of DeepSeek-V3 and R1: 671B MoE, aux-loss-free balancing, MTP, FP8 training, then R1s GRPO reasoning recipe and the distillation wave."><span class="tl-dot"></span><span class="tl-yr">2024–25</span><span class="tl-name">DeepSeek-V3 → R1</span><span class="tl-inn">Aux-loss-free MoE, MTP, FP8; GRPO reasoning</span></button>
+      <button class="tl-item" data-card="qwen3" data-status="wip" data-prompt="Teardown of Qwen3 including the 4B I fine-tune at work: architecture, hybrid thinking modes, GQA config, and how the dense + MoE family was trained and distilled."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Qwen3</span><span class="tl-inn">Hybrid thinking modes, strong small dense models</span></button>
+      <button class="tl-item" data-card="kimi-k2" data-status="wip" data-prompt="Teardown of Kimi K2: 1T-param MoE (8 of 384 experts), MLA, MuonClip optimizer with QK-clip for stability, agentic training focus — and its open-weights significance."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Kimi K2</span><span class="tl-inn">1T open MoE, MuonClip, agentic focus</span></button>
+      <button class="tl-item" data-card="kimi-linear" data-status="wip" data-prompt="Teardown of Kimi Linear (late 2025): the KDA hybrid linear attention architecture that beat full attention under fair comparison — the bridge paper to K3."><span class="tl-dot"></span><span class="tl-yr">2025</span><span class="tl-name">Kimi Linear</span><span class="tl-inn">KDA proves hybrid linear beats full attention</span></button>
+      <button class="tl-item" data-card="kimi-k3" data-status="wip" data-prompt="Full teardown of Kimi K3 (July 2026) with everything publicly known: 2.8T params, KDA hybrid linear attention, Attention Residuals across depth, Stable LatentMoE with 16 of 896 experts, Quantile Balancing, Per-Head Muon, SiTU activation, Gated MLA, MXFP4/MXFP8 QAT, native vision, 1M context — and how every one of these traces back to a concept earlier in this roadmap."><span class="tl-dot" style="background:var(--accent)"></span><span class="tl-yr">2026</span><span class="tl-name">Kimi K3</span><span class="tl-inn">2.8T, KDA + AttnRes, Stable LatentMoE 16/896, 1M context, MXFP4</span></button>
+    </div>
+    <div class="phase-detail" id="detail-p9" role="region" tabindex="-1" hidden></div>
+  </section>
+
+  <footer class="src">
+    <p><b>On this map.</b> The spine is adapted from a personal study roadmap. Phase&nbsp;0–1 are worked in full; the remaining cards are being filled one phase at a time. Where a card touches Kimi&nbsp;K3 internals, it is built on what is <b>publicly known as of July&nbsp;2026</b> — the full K3 technical report and weights land <b>July&nbsp;27, 2026</b>, and those cards (Stable LatentMoE especially) will be deepened once it drops.</p>
+  </footer>
+
+</div>
+
+<!-- ================= HIDDEN DERIVATION SOURCE (KaTeX-rendered on load, cloned into panels on demand) ================= -->
+<div id="derivations" hidden aria-hidden="true">
+
+  <div class="derivation" data-dv="lm-next-token">
+    <p>A language model is nothing more than a probability distribution over token sequences. Given a vocabulary $V$ and a sequence $x_{1:T}=(x_1,\dots,x_T)$, the <strong>chain rule of probability</strong> factorizes the joint <em>exactly</em>, with no approximation:</p>
+    $$P(x_1,\dots,x_T)=\prod_{t=1}^{T} P(x_t \mid x_1,\dots,x_{t-1})=\prod_{t=1}^{T} P(x_t \mid x_{<t}).$$
+    <p>This left-to-right ordering is the <strong>autoregressive factorization</strong>. It is a choice of ordering, not of model — but it is the one that lets us both train and sample one token at a time. The only modeling decision is to parameterize each conditional with a neural network, $p_\theta(x_t\mid x_{<t})$, whose final step is a softmax over the vocabulary:</p>
+    $$p_\theta(v\mid x_{<t})=\operatorname{softmax}(z_t)_v=\frac{e^{z_{t,v}}}{\sum_{v'\in V}e^{z_{t,v'}}},$$
+    <p>where $z_t\in\mathbb{R}^{|V|}$ are the logits at position $t$.</p>
+    <h4>From maximum likelihood to cross-entropy</h4>
+    <p>Fitting $\theta$ by maximum likelihood means maximizing $\log P_\theta(x_{1:T})$, i.e. minimizing the <strong>negative log-likelihood</strong> (NLL):</p>
+    $$\mathcal{L}(\theta)=-\sum_{t=1}^{T}\log p_\theta(x_t\mid x_{<t}).$$
+    <p>Each term is exactly the <strong>cross-entropy</strong> between the one-hot target $e_{x_t}$ and the predicted distribution, because the target puts all its mass on the true token:</p>
+    $$H(e_{x_t},p_\theta)=-\sum_{v\in V}\mathbf{1}[v=x_t]\,\log p_\theta(v\mid x_{<t})=-\log p_\theta(x_t\mid x_{<t}).$$
+    <p>So "next-token prediction," "maximum likelihood," and "minimize cross-entropy" are three names for the same objective.</p>
+    <h4>Perplexity</h4>
+    <p>Perplexity is the exponentiated average NLL — the standard intrinsic metric:</p>
+    $$\mathrm{PPL}=\exp\!\Big(\tfrac{1}{T}\sum_{t=1}^{T}-\log p_\theta(x_t\mid x_{<t})\Big).$$
+    <p>It has a clean reading: the <strong>effective branching factor</strong> the model faces at each step. A model that is perfectly uniform over a size-$|V|$ vocabulary has $\mathrm{PPL}=|V|$; a model that always assigns probability 1 to the truth has $\mathrm{PPL}=1$.</p>
+    <div class="note">Worked micro-example. Suppose over a 2-token sequence the model assigns probability $0.5$ to each correct token. Average NLL $=-\log 0.5 = 0.693$ nats, so $\mathrm{PPL}=e^{0.693}=2$. In plain words: at every step the model is as uncertain as a fair coin.</div>
+    <p class="next"><b>Where this goes.</b> The whole rest of the map is engineering to make $p_\theta(x_t\mid x_{<t})$ both accurate and cheap. The softmax head here reappears in <em>weight tying</em> (Embeddings) and every logit is a dot product with a token vector — the seed of attention.</p>
+  </div>
+
+  <div class="derivation" data-dv="tokenization">
+    <p>Before a model sees numbers it must cut text into units. Three options sit on a spectrum. <strong>Characters</strong> give a tiny vocabulary but very long sequences and weak units (attention cost is quadratic in length — Phase&nbsp;1). <strong>Words</strong> give short sequences but an unbounded vocabulary and an out-of-vocabulary (OOV) wall. <strong>Subwords</strong> are the compromise everyone uses: frequent words stay whole, rare words fracture into reusable pieces, and nothing is ever OOV.</p>
+    <h4>Byte-Pair Encoding (BPE), step by step</h4>
+    <p>BPE learns the subword vocabulary greedily from data:</p>
+    <ul>
+      <li>Start with a base vocabulary (characters, or the 256 raw bytes).</li>
+      <li>Count every adjacent symbol pair across the corpus.</li>
+      <li>Merge the single <strong>most frequent pair</strong> into one new symbol; add it to the vocabulary.</li>
+      <li>Repeat for $K$ merges. Final vocab size $=$ base $+\,K$.</li>
+    </ul>
+    <p>Worked merge: take the corpus <code>low low lower newest widest</code>, split into characters. The pair <code>e&nbsp;s</code> is most frequent (from <code>newest</code>, <code>widest</code>) → merge to <code>es</code>. Now <code>es&nbsp;t</code> is most frequent → merge to <code>est</code>. Next <code>l&nbsp;o</code> → <code>lo</code>, then <code>lo&nbsp;w</code> → <code>low</code>. After four merges, common chunks like <code>low</code> and <code>est</code> are single tokens while rare strings remain splittable.</p>
+    <h4>Byte-level BPE and SentencePiece</h4>
+    <p><strong>Byte-level BPE</strong> (GPT-2) runs BPE over the 256 bytes rather than Unicode characters. Because any string is a byte string, there is <em>no</em> <code>&lt;unk&gt;</code> token and every language/emoji is representable. GPT-2's vocabulary is 50,257 = 50,000 merges + 256 bytes + 1 special <code>&lt;|endoftext|&gt;</code>.</p>
+    <p><strong>SentencePiece / Unigram-LM</strong> goes the other way: seed a large candidate vocabulary, fit a unigram language model, and iteratively <em>prune</em> the tokens whose removal least hurts corpus likelihood. It treats input as a raw stream (spaces become a visible <code>▁</code>), so it is fully reversible and language-agnostic — which is why multilingual models favor it.</p>
+    <h4>Vocab-size tradeoff</h4>
+    <p>A larger vocabulary shortens sequences (cheaper attention, more information per token) but inflates the embedding and softmax matrices, which cost $|V|\cdot d$ parameters each, and it leaves rare tokens under-trained. Production sizes cluster at 32k–256k.</p>
+    <div class="note">Why tokenization causes "weird" failures. Digits get chunked inconsistently, so arithmetic is brittle; character-level tasks (reversing a word, "count the r's in <em>strawberry</em>") fight the tokenizer because the model never sees letters; non-English text inflates into more tokens per word; and rare "glitch" tokens that were seen almost never in training can trigger bizarre outputs.</div>
+    <p class="next"><b>Where this goes.</b> Each token id is about to index a row of the embedding matrix — the next card.</p>
+  </div>
+
+  <div class="derivation" data-dv="embeddings">
+    <p>A token id is just an integer. To do math we first turn it into a vector. The naive encoding is <strong>one-hot</strong>: $x\in\{0,1\}^{|V|}$ with a single 1. One-hot vectors are orthogonal, so they carry <em>no</em> notion of similarity — every token is equidistant from every other.</p>
+    <h4>The embedding matrix is a lookup</h4>
+    <p>Multiply the one-hot by an <strong>embedding matrix</strong> $E\in\mathbb{R}^{|V|\times d}$:</p>
+    $$e = E^\top x \in \mathbb{R}^{d}.$$
+    <p>Because $x$ is one-hot, this matrix-vector product simply <em>selects a row</em> of $E$. So an embedding layer is a learned lookup table: token $v\mapsto E_v$, a dense $d$-dimensional vector. The one-hot framing matters only because it shows the embedding is a linear map — gradients flow to exactly the used row.</p>
+    <h4>What the dimensions mean</h4>
+    <p>Each token becomes a point in $\mathbb{R}^d$. Training shapes this space so that directions and distances encode relationships; the classic intuition is that analogies live in roughly linear directions ($\text{king}-\text{man}+\text{woman}\approx\text{queen}$). In an LLM these input vectors are only the starting point — attention then contextualizes them — but even the raw space clusters related tokens.</p>
+    <h4>The unembedding head, and weight tying</h4>
+    <p>At the output, the final hidden state $h\in\mathbb{R}^d$ is turned back into vocabulary logits by an <strong>unembedding</strong> matrix $U\in\mathbb{R}^{|V|\times d}$:</p>
+    $$z = U h,\qquad z_v=\langle h, U_v\rangle,\qquad p=\operatorname{softmax}(z).$$
+    <p>Every logit is a <em>dot product between the hidden state and a token vector</em> — so decoding is a similarity search in embedding space. <strong>Weight tying</strong> (Press &amp; Wolf, 2017) sets $U=E$: one matrix serves both input lookup and output scoring. This is principled (both map between token identity and the $d$-space), it regularizes, and it saves a large share of parameters.</p>
+    <div class="note">Scale check. For GPT-2 (124M), $|V|=50{,}257$ and $d=768$, so $E$ holds $\approx 38.6$M parameters — about 31% of the whole model. Tying input and output embeddings removes a second matrix of the same size.</div>
+    <p class="next"><b>Where this goes.</b> These per-token vectors are the $X$ that attention will project into queries, keys and values in Phase&nbsp;1. And the softmax-of-dot-products here is the exact shape of the attention score.</p>
+  </div>
+
+  <div class="derivation" data-dv="pre-transformer">
+    <p>To feel why the transformer was inevitable, watch the bottleneck move.</p>
+    <h4>n-gram models</h4>
+    <p>An n-gram LM makes a Markov assumption — the next token depends only on the last $n-1$:</p>
+    $$P(x_t\mid x_{<t})\approx P(x_t\mid x_{t-n+1:\,t-1}),$$
+    <p>estimated by counting and smoothing (Kneser-Ney). It cannot model dependencies longer than $n$, and the count table grows like $|V|^{n}$ — the curse of dimensionality. Most long n-grams are simply never observed.</p>
+    <h4>RNNs</h4>
+    <p>A recurrent net drops the fixed window by carrying a hidden state:</p>
+    $$h_t=\phi(W_h h_{t-1}+W_x x_t + b),$$
+    <p>compressing <em>all</em> history into one fixed vector. But training by backprop-through-time repeatedly multiplies by the Jacobian of $W_h$; its singular values shrink or blow up geometrically, giving <strong>vanishing / exploding gradients</strong> that prevent learning long-range structure.</p>
+    <h4>LSTM / GRU</h4>
+    <p>Gated cells add an <em>additive</em> path for the cell state (the "constant error carousel"): forget, input and output gates decide what to keep. This blunts vanishing gradients and was the workhorse for years — but it is still <strong>sequential</strong> (no parallelism over time) and still squeezes context through a bounded state.</p>
+    <h4>seq2seq and its bottleneck</h4>
+    <p>Sutskever's seq2seq (2014) encodes a source with one RNN into a single context vector, then decodes with another. The flaw is stark: the entire source sentence must fit in that one fixed vector.</p>
+    <h4>Bahdanau attention — the key idea</h4>
+    <p>Bahdanau (2014) lets the decoder look back at <em>all</em> encoder states through learned alignment weights:</p>
+    $$\alpha_{tj}=\operatorname{softmax}_j\big(\text{score}(s_{t-1},h_j)\big),\qquad c_t=\sum_j \alpha_{tj}\,h_j.$$
+    <p>The fixed-vector bottleneck is gone — but this attention still rides on top of RNNs, so it inherits their sequential, unparallelizable computation.</p>
+    <div class="note">The 2017 leap. "Attention Is All You Need" keeps the attention and <em>throws away the recurrence</em>. That buys three things at once: full parallelism across the sequence, an $O(1)$ path length between any two positions (vs. $O(n)$ through an RNN), and far better long-range modeling. Everything in Phase&nbsp;1 follows.</p></div>
+    <p class="next"><b>Where this goes.</b> Bahdanau's $\alpha_{tj}=\operatorname{softmax}(\text{score})$ becomes self-attention's $\operatorname{softmax}(QK^\top/\sqrt{d_k})$ — same shape, now computed for every position against every other in parallel.</p>
+  </div>
+
+  <div class="derivation" data-dv="sdpa">
+    <p>Self-attention lets every token gather information from every other token in a single parallel operation. Start from the token vectors $X\in\mathbb{R}^{n\times d}$ (Phase&nbsp;0) and make three linear projections:</p>
+    $$Q=XW_Q,\quad K=XW_K,\quad V=XW_V,\qquad W_Q,W_K\in\mathbb{R}^{d\times d_k},\ W_V\in\mathbb{R}^{d\times d_v}.$$
+    <p>Read them as roles: the <strong>query</strong> $q_i$ is "what token $i$ is looking for," the <strong>key</strong> $k_j$ is "what token $j$ offers as a handle," and the <strong>value</strong> $v_j$ is "what token $j$ actually contributes."</p>
+    <h4>Scores, scaling, softmax</h4>
+    <p>The affinity of query $i$ to key $j$ is their dot product, $S_{ij}=\langle q_i,k_j\rangle$ — large when the two vectors point the same way, so the dot product <em>is</em> the similarity measure. Collect them as $S=QK^\top\in\mathbb{R}^{n\times n}$, scale, and softmax each row:</p>
+    $$\operatorname{Attn}(Q,K,V)=\operatorname{softmax}\!\Big(\frac{QK^\top}{\sqrt{d_k}}\Big)V.$$
+    <p>Each output row is a convex combination of value vectors — token $i$ literally reads a weighted average of everyone's values, weighted by relevance.</p>
+    <h4>Why divide by √d_k — the variance argument</h4>
+    <p>Model the entries of $q$ and $k$ as independent, mean 0, variance 1. A single score is a sum of $d_k$ products:</p>
+    $$S_{ij}=\sum_{l=1}^{d_k} q_{il}\,k_{jl}.$$
+    <p>Each term has mean $\mathbb{E}[q_{il}k_{jl}]=0$ and variance $\operatorname{Var}(q_{il}k_{jl})=\mathbb{E}[q_{il}^2]\mathbb{E}[k_{jl}^2]=1$. Independence makes the variances add, so</p>
+    $$\operatorname{Var}(S_{ij})=d_k,\qquad \operatorname{std}(S_{ij})=\sqrt{d_k}.$$
+    <p>Raw scores therefore grow like $\sqrt{d_k}$. Feed large-magnitude logits into a softmax and it saturates toward one-hot — and there the gradient dies. The softmax Jacobian is</p>
+    $$\frac{\partial\,\operatorname{softmax}(z)_i}{\partial z_j}=p_i(\delta_{ij}-p_j),$$
+    <p>so as some $p_i\to 1$ every derivative $\to 0$. Dividing by $\sqrt{d_k}$ rescales the score variance back to $\approx 1$, keeping softmax in its well-conditioned regime. That single constant is why the whole thing trains.</p>
+    <h4>Worked 3-token example</h4>
+    <p>Let $d_k=2$ and consider the query of token 3, $q_3=[1,0]$, against keys $k_1=[1,0],\,k_2=[0,1],\,k_3=[1,1]$. Raw scores $q_3\!\cdot\!k_j=[\,1,\,0,\,1\,]$; scaled by $1/\sqrt2$: $[0.707,\,0,\,0.707]$. Softmax:</p>
+    $$\big[\tfrac{e^{0.707}}{Z},\tfrac{e^{0}}{Z},\tfrac{e^{0.707}}{Z}\big]=[0.401,\,0.198,\,0.401],\quad Z=5.056.$$
+    <p>The output for token 3 is $0.401\,v_1+0.198\,v_2+0.401\,v_3$ — it attends mostly to tokens 1 and 3, whose keys align with its query, and least to token 2.</p>
+    <p class="next"><b>Where this goes.</b> Add a mask to this (Causal masking), run several in parallel (Multi-head), then notice $S$ is $n\times n$ (Quadratic complexity) — the fact that drives all of Phase&nbsp;4.</p>
+  </div>
+
+  <div class="derivation" data-dv="causal-mask">
+    <p>The autoregressive factorization (Phase&nbsp;0) demands that the prediction at position $t$ depend only on positions $\le t$. But self-attention, left alone, lets every token see every other — including the future. Causal masking restores the constraint.</p>
+    <h4>The −∞ mask, applied before softmax</h4>
+    <p>Add a mask to the scaled scores that zeroes out future positions <em>inside</em> the exponent:</p>
+    $$S'_{ij}=\begin{cases}S_{ij}/\sqrt{d_k}, & j\le i\\[2pt]-\infty, & j>i\end{cases}\qquad A=\operatorname{softmax}(S').$$
+    <p>Since $e^{-\infty}=0$, every future weight becomes exactly 0, and the surviving weights still sum to 1. The attention matrix becomes lower-triangular.</p>
+    <div class="note">Why <em>before</em> the softmax, not after. Masking pre-softmax lets the normalizer sum only over allowed positions, so each row stays a valid distribution. Zeroing entries <em>after</em> softmax would break normalization — the row would no longer sum to 1.</div>
+    <h4>Teacher forcing — why training is one parallel pass</h4>
+    <p>During training we feed the <strong>ground-truth</strong> prefix rather than the model's own samples ("teacher forcing"). Combined with the causal mask, a single forward pass over a length-$n$ sequence computes the next-token loss at <em>every</em> position simultaneously: position $t$ predicts token $t{+}1$, and the mask guarantees it never peeked. This parallel, $n$-losses-per-sequence property is exactly why decoder-only LMs are so efficient to train.</p>
+    <h4>Train vs. inference</h4>
+    <p>The mask is identical at train and inference; only the input source differs. Training uses gold prefixes; generation feeds the model its own samples, so early mistakes compound — <strong>exposure bias</strong>. At inference we also stop recomputing the triangle: each new token attends to a cache of past keys/values.</p>
+    <p class="next"><b>Where this goes.</b> That cache is the KV cache (Phase&nbsp;4) — the reason decode is memory-bound and the target of MQA/GQA, MLA, and KDA.</p>
+  </div>
+
+  <div class="derivation" data-dv="mha">
+    <p>A single attention head imposes <em>one</em> similarity structure on the sequence. Multi-head attention runs several in parallel, each in its own subspace, so the layer can attend by syntax, by position, and by content at once.</p>
+    <h4>Splitting into heads</h4>
+    <p>Choose $h$ heads with per-head dimension $d_k=d/h$. Each head $i$ has its own projections and runs ordinary scaled dot-product attention; the outputs are concatenated and mixed by an output projection $W_O\in\mathbb{R}^{d\times d}$:</p>
+    $$\operatorname{head}_i=\operatorname{Attn}(XW_Q^i,\,XW_K^i,\,XW_V^i),$$
+    $$\operatorname{MHA}(X)=\operatorname{Concat}(\operatorname{head}_1,\dots,\operatorname{head}_h)\,W_O.$$
+    <p>Because each head's dimension shrinks by a factor $h$, the total compute is about the same as one full-width head — you get diversity for free.</p>
+    <h4>Exact shapes</h4>
+    <ul>
+      <li>Input $X:(n,d)$.</li>
+      <li>Per head: $Q,K,V:(n,d_k)$; scores $(n,n)$; head output $(n,d_v)$.</li>
+      <li>Concat over heads: $(n,\,h\cdot d_v)=(n,d)$; after $W_O$: $(n,d)$.</li>
+      <li>Batched with $b$ examples and $h$ heads, the working tensors are $(b,h,n,d_k)$.</li>
+    </ul>
+    <h4>What W_O and the heads do</h4>
+    <p>$W_O$ mixes the per-head results back into the shared <em>residual stream</em> (Phase&nbsp;2); without it, heads would write into disjoint slots and never interact. Empirically, heads specialize: <strong>previous-token heads</strong>, <strong>positional heads</strong>, and famously <strong>induction heads</strong> that detect a repeated pattern <code>...[A][B]...[A]</code> and copy <code>[B]</code> — the mechanism behind in-context learning.</p>
+    <div class="note">Parameter count. The four projections $W_Q,W_K,W_V,W_O$ are each $d\times d$, so an attention block holds $4d^2$ parameters — independent of the head count $h$. Choosing $h$ trades many narrow views against fewer wide ones at fixed cost.</div>
+    <p class="next"><b>Where this goes.</b> Keeping $h$ query heads but <em>sharing</em> K/V across them is exactly MQA/GQA (Phase&nbsp;4); compressing K/V into a latent is MLA.</p>
+  </div>
+
+  <div class="derivation" data-dv="quadratic">
+    <p>One fact organizes the next decade of research. The attention score matrix is $n\times n$.</p>
+    <h4>Deriving the cost</h4>
+    <p>Computing $S=QK^\top$ forms $n^2$ entries, each a $d_k$-dimensional dot product, so it costs $O(n^2 d)$ FLOPs; the second matmul $AV$ costs the same. Storing $A$ (per head, per layer) needs $O(n^2)$ memory:</p>
+    $$\underbrace{O(n^2 d)}_{\text{compute}}\qquad\underbrace{O(n^2)}_{\text{attention-matrix memory}}.$$
+    <p>Contrast the position-wise linear parts (projections, FFN), which are $O(n\,d^2)$. Attention overtakes them once $n\gtrsim d$ — precisely the long-context regime everyone wants.</p>
+    <h4>Where it bites: prefill vs. decode</h4>
+    <ul>
+      <li><strong>Prefill</strong> (encode a length-$n$ prompt in one pass) is <em>compute-bound</em> and pays the full $O(n^2 d)$.</li>
+      <li><strong>Decode</strong> (generate one token, reusing a KV cache) does only $O(n\,d)$ compute per step but must <em>read the entire</em> $O(n\,d)$ cache from memory — so it is <em>memory-bandwidth-bound</em>. Over $n$ generated tokens the cache-reads total $O(n^2 d)$ again.</li>
+    </ul>
+    <h4>Why it drives everything</h4>
+    <p>That $n^2$ is the reason long context is expensive, and nearly every architecture line after 2019 is an assault on it, from a different angle:</p>
+    <ul>
+      <li><strong>Same FLOPs, less memory traffic:</strong> FlashAttention (tiling + online softmax).</li>
+      <li><strong>Shrink the KV that decode must stream:</strong> MQA / GQA / MLA.</li>
+      <li><strong>Restrict which pairs interact:</strong> sliding-window and sparse attention.</li>
+      <li><strong>Remove the $n^2$ term entirely</strong> with a recurrent fixed-size state: linear attention, Mamba, and Kimi Delta Attention.</li>
+    </ul>
+    <p class="next"><b>Where this goes.</b> All of Phase&nbsp;4 is this list, worked out. KDA in Kimi&nbsp;K3 is the endpoint: a hybrid that keeps a little full attention for global recall and makes the rest linear, for ~6× faster decode at 1M tokens.</p>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+/* ---- orientation blurbs for cards still to be fully derived ---- */
+var WIP = {
+  'residual':"The residual stream is the backbone that carries information straight through the network: each block computes a delta and adds it back, so gradients flow through the identity path and never have to survive a long product of Jacobians. This view — the stream as a shared workspace every layer reads from and writes to — is the dominant lens in mechanistic interpretability, and it is what Kimi K3's Attention Residuals (AttnRes) extend across depth.",
+  'norm':"Normalization keeps activations well-scaled layer to layer. The arc is LayerNorm (2017) → moving the norm before the sublayer (pre-LN, GPT-2) for stable deep training → RMSNorm (LLaMA on), which drops the mean-centering and keeps only the RMS rescale because that is the part that matters — plus QK-norm to tame attention logits in recent models.",
+  'ffn':"The position-wise FFN holds most of a transformer's parameters and acts as key-value memory. The activation story runs ReLU → GELU (GPT-2) → SwiGLU (LLaMA/Qwen), where a gated linear unit multiplies two projections so the network learns its own gating, up to newer variants like K3's SiTU. The 4× hidden expansion is where much of the model's knowledge lives.",
+  'gpt2-anatomy':"GPT-2 (124M) is the reference baseline the whole map measures against: 12 layers, d_model 768, 12 heads, learned absolute positional embeddings, pre-LN blocks, GELU FFN, tied embeddings, trained on 40GB of WebText. Knowing its forward pass tensor by tensor makes every later change legible as a diff against this anchor.",
+  'abs-rel-pe':"Absolute position encodings come in two flavors: learned per-position vectors (GPT-2) and fixed sinusoids (original transformer). Both add position to the token, and both extrapolate poorly beyond trained lengths. Relative schemes (Shaw, T5's learned bias) instead inject the distance between tokens directly into the attention score — the idea RoPE will perfect.",
+  'rope':"RoPE encodes position by rotating the query and key vectors by an angle proportional to their absolute position. Because a dot product between two rotated vectors depends only on the difference of angles, attention becomes a function of relative position by construction — no added bias term. The base frequency θ sets the wavelength spectrum, and RoPE has been near-universal since LLaMA.",
+  'long-context':"RoPE can be stretched far past its training length. Position Interpolation squeezes positions into the trained range; NTK-aware scaling and YaRN reshape the per-frequency treatment so high-frequency detail survives; ALiBi is a bias-based alternative. Together these took context from GPT-2's 1K to 128K (Llama 3, DeepSeek) and, with hybrid linear attention, to K3's 1M.",
+  'kv-cache':"At decode we never recompute past keys and values — we cache them. The cache costs layers × kv_heads × d_head × 2 × seq × batch × bytes, which grows linearly with context and quickly dwarfs the weights, making decode memory-bandwidth-bound rather than compute-bound. This single quantity is what MQA/GQA, MLA and KDA all attack.",
+  'mqa-gqa':"Multi-Query Attention keeps many query heads but a single shared K/V head, shrinking the cache by the head count; Grouped-Query Attention is the middle ground — a few K/V groups shared among query heads — trading a little quality for a large cache reduction. GQA is the default in Llama 2 70B, Mistral and Qwen.",
+  'flashattention':"FlashAttention computes exact attention while never materializing the n×n matrix in slow HBM. It tiles Q, K, V into SRAM blocks and uses an online-softmax recurrence (a running max and sum) to accumulate the output block by block, recomputing in the backward pass instead of storing. Same FLOPs, far less memory traffic — attention was bandwidth-bound all along.",
+  'sliding-sparse':"Sliding-window attention (Mistral) limits each token to the last w positions with a rolling KV cache, making cost linear in length; attention sinks / StreamingLLM keep the first few tokens as always-visible anchors so quality survives; DeepSeek's NSA learns which blocks to attend natively. Each trades some global reach for a smaller footprint.",
+  'mla':"Multi-head Latent Attention (DeepSeek-V2/V3) compresses K and V into a small shared latent vector that is cached, then up-projects to full heads at compute time — so the cache stores the latent, not full K/V, beating GQA on both size and quality. A decoupled RoPE key preserves position; K3 uses a Gated MLA variant.",
+  'linear-attention':"Drop the softmax and attention becomes an RNN with a matrix-valued state you update once per token — O(1) memory, O(n) time, but weaker recall. The lineage adds structure back: gating (GLA), selective state spaces (Mamba/Mamba2), and the delta rule (DeltaNet, Gated DeltaNet) that writes associations into the state. This is the road that leads to KDA.",
+  'kda':"Kimi Delta Attention extends Gated DeltaNet with channel-wise (per-dimension) forget gates instead of one scalar per head, giving finer control over what the recurrent state remembers, expressed through Diagonal-Plus-Low-Rank transition matrices computed with a chunkwise-parallel algorithm. In K3 it runs in a 3:1 hybrid with full attention, for roughly 6× faster decode at 1M context.",
+  'moe-fundamentals':"A Mixture-of-Experts layer replaces the single FFN with N expert FFNs and a router that sends each token to its top-k experts, so total parameters scale while the compute per token stays fixed to k experts. Mixtral 8×7B makes the total-vs-active gap concrete: ~47B total parameters, ~13B active per token.",
+  'moe-balancing':"Left alone, routers collapse onto a few favorite experts. The fix evolved from an auxiliary load-balancing loss that penalizes imbalance, to DeepSeek-V3's auxiliary-loss-free method that nudges per-expert bias terms instead (no gradient interference), to Kimi K3's Quantile Balancing, which sets allocation from the quantiles of router scores.",
+  'moe-finegrained':"DeepSeekMoE splits experts into many smaller ones and routes more of them, raising combinatorial specialization, while always-on shared experts absorb common computation. The sparsity trend is steep: Mixtral 2-of-8 → DeepSeek-V3 8-of-256 → Kimi K2 8-of-384 → K3 16-of-896 — paid for with expert-parallel all-to-all communication.",
+  'stable-latentmoe':"Kimi K3's Stable LatentMoE is the framework that keeps training stable at an extreme 16-of-896 sparsity, where routing and optimization become first-order problems, and is tied to the ~2.5× scaling-efficiency claim over K2. Public details are still thin — the internals here await the July 27, 2026 technical report.",
+  'scaling-laws':"Scaling laws predict loss as a power law in parameters, data and compute. Kaplan (2020) mapped the exponents; Chinchilla (2022) found the compute-optimal balance is ~20 tokens per parameter and that most models were badly under-trained; deployment economics then push past Chinchilla into deliberate over-training (Llama), with data-constrained scaling now the live question.",
+  'data-pipeline':"Pretraining data is a pipeline: crawl, then deduplicate (MinHash/LSH), then quality-filter with classifiers, then compose a mixture and anneal it — a high-quality phase near the end sharpens the model — plus synthetic data and careful multi-epoch tradeoffs. Llama 3 and DeepSeek-V3 are the canonical public recipes.",
+  'optimizers':"From SGD to Adam (per-parameter adaptive moments) to AdamW (decoupled weight decay), with warmup and cosine/WSD schedules and gradient clipping. Then the new line: Muon orthogonalizes the update via a few Newton-Schulz steps; MuonClip adds QK-clip to stop logit explosion (Kimi K2); Per-Head Muon refines this per attention head in K3.",
+  'precision':"Lower precision saves memory and bandwidth if you tame the numerics. FP16 needs loss scaling; BF16 trades mantissa for range and mostly just works; FP8 (DeepSeek-V3) needs fine-grained per-block scaling; K3 goes further with quantization-aware training in MX block formats — MXFP4 weights, MXFP8 activations — so the model is trained to be low-precision natively.",
+  'parallelism':"Training a trillion-parameter model means splitting it many ways at once: data parallel with ZeRO/FSDP sharding of states, tensor parallel (Megatron's column/row splits), pipeline parallel with its bubble, expert parallel for MoE all-to-all, and context/sequence parallel for long inputs — composed into a 3D/4D layout chosen around the interconnect.",
+  'training-stability':"At scale, loss spikes, logit explosion, and divergence are engineering realities. The toolkit: QK-clip to cap attention logits, z-loss to keep the softmax normalizer sane, careful initialization (muP for transferable hyperparameters), gradient-norm monitoring, and disciplined checkpoint-restart when a run goes bad.",
+  'sft-lora':"Supervised fine-tuning turns a base model into an instruction follower: wrap data in a chat template with special role tokens, mask the loss so only assistant tokens are learned, and lean on quality over quantity (LIMA). LoRA freezes the weights and learns a low-rank update ΔW = BA, cutting trainable parameters by orders of magnitude.",
+  'rlhf-dpo':"RLHF aligns to preferences: train a Bradley-Terry reward model on pairwise comparisons, then optimize the policy with PPO under a KL leash to the reference — powerful but unstable and expensive (reward + value + policy models). DPO removes the RL loop by deriving a closed-form loss that makes the policy its own implicit reward.",
+  'rlvr':"When rewards are checkable — math answers, unit tests — you can skip the reward model. GRPO samples a group of completions and uses their group-relative advantage (no value network) to update the policy. This is the DeepSeek-R1 / R1-Zero recipe: long chain-of-thought emerges, test-time scaling kicks in, and the reasoning distills into smaller models like Qwen3.",
+  'agentic':"Agentic post-training teaches tool use and long horizons: standardized tool-call formats, multi-turn RL where reward lands only after a whole trajectory, and carefully engineered environments and verifiers for coding agents. This is the training focus behind Kimi K2/K3-style agentic models.",
+  'prefill-decode':"Prefill and decode have opposite bottlenecks. Prefill processes the whole prompt at once with high arithmetic intensity — compute-bound, and it sets TTFT. Decode emits one token at a time reading the full KV cache — memory-bandwidth-bound, and it sets TPOT. Chunked prefill and prefill/decode disaggregation exploit exactly this asymmetry.",
+  'serving-systems':"Modern serving is a memory-management story. Continuous batching (Orca) swaps finished sequences out mid-flight; PagedAttention (vLLM) manages the KV cache like virtual memory in fixed pages to kill fragmentation; RadixAttention (SGLang) shares a prefix tree so common prompts reuse cache; KV offloading spills to host memory when needed.",
+  'spec-decoding':"Speculative decoding drafts several tokens cheaply and verifies them in one target-model pass, accepting the longest correct prefix — provably lossless via a rejection-sampling correction. The family runs from a separate draft model to Medusa heads to EAGLE 1/2/3 feature-level drafting with tree attention. Your DFlash and DSpark work sits at the frontier of this taxonomy.",
+  'quantization':"Post-training quantization shrinks a trained model. INT8 must handle activation outliers (LLM.int8's mixed decomposition); GPTQ uses second-order (Hessian) information to round weights with minimal error; AWQ scales by activation importance; FP8/FP4 and MX microscaling push lower still, and KV-cache quantization attacks the decode bottleneck directly.",
+  'mtp':"Multi-Token Prediction adds heads that predict several future tokens during training (DeepSeek-V3, Kimi K2/K3 lineage), a denser learning signal — and at inference those same heads double as a built-in self-speculative drafter, giving speculative-decoding speedups with no separate draft model and solid measured acceptance rates.",
+  'serving-moe':"Serving a trillion-parameter MoE means spreading experts across many accelerators (wide expert parallelism), overlapping the all-to-all with compute, and using supernode topologies (K3 recommends 64+ accelerators). Hybrid linear attention like KDA changes the memory equation, keeping 1M-token context affordable where full attention would not fit.",
+  'gpt2-gpt3':"GPT-2 (2019) set the decoder-only template this whole map builds on; GPT-3 (2020) scaled the same recipe to 175B and revealed in-context learning — the model performing new tasks from prompt examples alone, with no weight updates.",
+  'chinchilla-llama':"Chinchilla (2022) recomputed the compute-optimal frontier — most models were under-trained — and LLaMA (2023) crystallized the modern open recipe: RoPE + RMSNorm + SwiGLU, released with open weights that reset the whole field's baseline.",
+  'mistral-mixtral':"Mistral 7B paired sliding-window attention with GQA to punch far above its size; Mixtral 8×7B brought open sparse MoE into the mainstream, showing a sparse model could match a much larger dense one at a fraction of the active compute.",
+  'deepseek-v2':"DeepSeek-V2 introduced the two ideas that define today's efficient frontier: MLA latent-KV compression and DeepSeekMoE fine-grained experts with shared experts — cheaper cache and cheaper compute at once.",
+  'deepseek-v3-r1':"DeepSeek-V3 scaled that recipe to a 671B MoE with auxiliary-loss-free balancing, MTP and FP8 training; R1 then added the GRPO reasoning recipe and triggered the reasoning-distillation wave across the open ecosystem.",
+  'qwen3':"Qwen3 is a dense + MoE family with hybrid thinking modes (switchable reasoning) and unusually strong small dense models — including the 4B checkpoint fine-tuned at Phenom — trained and distilled from larger siblings.",
+  'kimi-k2':"Kimi K2 is a 1T-parameter open MoE (8 of 384 experts) with MLA and the MuonClip optimizer (QK-clip for stability), built with an agentic training focus — the direct predecessor to K3.",
+  'kimi-linear':"Kimi Linear (late 2025) is the bridge paper: it shows the KDA hybrid linear-attention architecture beating full attention under a fair, controlled comparison — the empirical green light for putting KDA at the center of K3.",
+  'kimi-k3':"Kimi K3 (July 2026) is the payoff lap: 2.8T parameters, KDA hybrid linear attention, Attention Residuals across depth, Stable LatentMoE at 16 of 896 experts, Quantile Balancing, Per-Head Muon, SiTU activation, Gated MLA, MXFP4/MXFP8 QAT, native vision, 1M context. Every one of these names decomposes into a card earlier in this map. Full internals arrive with the technical report on July 27, 2026."
+};
+var AWAIT = { 'stable-latentmoe':1, 'kimi-k3':1 };
+
+(function(){
+  var derivRoot = document.getElementById('derivations');
+  var openState = {}; // phaseId -> open card id
+
+  function svgCopy(){
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  }
+
+  function buildPrompt(promptText){
+    var wrap = document.createElement('div');
+    wrap.className = 'card-prompt';
+    var lbl = document.createElement('span');
+    lbl.className = 'lbl';
+    lbl.textContent = 'Go deeper';
+    var btn = document.createElement('button');
+    btn.className = 'ask';
+    btn.type = 'button';
+    btn.innerHTML = svgCopy() + '<span>Ask your own model this</span>';
+    var box = document.createElement('div');
+    box.className = 'promptbox';
+    box.textContent = promptText;
+    btn.addEventListener('click', function(){
+      box.classList.toggle('show');
+      var doCopy = box.classList.contains('show');
+      if (doCopy && navigator.clipboard) {
+        navigator.clipboard.writeText(promptText).then(function(){
+          btn.querySelector('span').textContent = 'Copied — paste into any LLM';
+          setTimeout(function(){ btn.querySelector('span').textContent = 'Ask your own model this'; }, 2200);
+        }).catch(function(){});
+      }
+      postHeight();
+    });
+    wrap.appendChild(lbl); wrap.appendChild(btn); wrap.appendChild(box);
+    return wrap;
+  }
+
+  function renderCard(card){
+    var id = card.getAttribute('data-card');
+    var status = card.getAttribute('data-status');
+    var prompt = card.getAttribute('data-prompt');
+    var title = card.querySelector('.t1, .tl-name').textContent.replace(/·$/, '').trim();
+
+    var inner = document.createElement('div');
+    inner.className = 'pd-inner';
+
+    var eye = document.createElement('p');
+    eye.className = 'pd-eyebrow';
+    eye.textContent = status === 'done' ? 'Full derivation' : 'Orientation';
+    var h = document.createElement('h3');
+    h.className = 'pd-title';
+    h.textContent = title;
+    inner.appendChild(eye); inner.appendChild(h);
+
+    if (status === 'done') {
+      var src = derivRoot.querySelector('[data-dv="'+id+'"]');
+      var body = src ? src.cloneNode(true) : null;
+      if (body) { body.removeAttribute('data-dv'); inner.appendChild(body); }
+    } else {
+      var blurb = document.createElement('div');
+      blurb.className = 'wipblurb';
+      var p = document.createElement('p');
+      p.textContent = WIP[id] || 'Full derivation coming soon.';
+      blurb.appendChild(p);
+      if (AWAIT[id]) {
+        var ab = document.createElement('div');
+        ab.className = 'awaitbox';
+        ab.innerHTML = 'Built on what is public as of July&nbsp;2026. The full internals await the <span class="await">Kimi&nbsp;K3 technical report — July&nbsp;27, 2026</span>, and this card will be deepened once it lands.';
+        blurb.appendChild(ab);
+      }
+      var chip = document.createElement('div');
+      chip.className = 'wipchip';
+      chip.textContent = 'Full derivation in progress';
+      blurb.appendChild(chip);
+      inner.appendChild(blurb);
+    }
+
+    inner.appendChild(buildPrompt(prompt));
+    return inner;
+  }
+
+  function closePhase(phaseId){
+    var panel = document.getElementById('detail-'+phaseId);
+    if (panel){ panel.hidden = true; panel.innerHTML = ''; }
+    var prev = openState[phaseId];
+    if (prev){
+      var pc = document.querySelector('[data-card="'+prev+'"]');
+      if (pc){ pc.classList.remove('is-active'); pc.setAttribute('aria-expanded','false'); }
+    }
+    openState[phaseId] = null;
+  }
+
+  function onCardClick(card){
+    var section = card.closest('.ph');
+    var phaseId = section.getAttribute('data-phase');
+    var id = card.getAttribute('data-card');
+    var panel = document.getElementById('detail-'+phaseId);
+
+    if (openState[phaseId] === id){ closePhase(phaseId); postHeight(); return; }
+    // close whatever was open in this phase, then open the new one
+    closePhase(phaseId);
+
+    panel.innerHTML = '';
+    panel.appendChild(renderCard(card));
+    panel.hidden = false;
+    card.classList.add('is-active');
+    card.setAttribute('aria-expanded','true');
+    openState[phaseId] = id;
+
+    // let layout settle, then focus + report height
+    setTimeout(function(){
+      try { panel.focus({preventScroll:true}); } catch(e){}
+      card.scrollIntoView({block:'nearest', behavior: prefersReduced() ? 'auto':'smooth'});
+      postHeight();
+    }, 20);
+  }
+
+  function prefersReduced(){
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  // wire cards
+  var cards = document.querySelectorAll('.nd, .tl-item');
+  cards.forEach(function(card){
+    card.setAttribute('aria-expanded','false');
+    var section = card.closest('.ph');
+    if (section) card.setAttribute('aria-controls', 'detail-'+section.getAttribute('data-phase'));
+    card.addEventListener('click', function(){ onCardClick(card); });
+  });
+
+  // progress pill
+  var doneCount = document.querySelectorAll('[data-status="done"]').length;
+  var totalCount = cards.length;
+  document.getElementById('progDone').textContent = doneCount;
+  document.getElementById('progTotal').textContent = totalCount;
+  document.getElementById('progBar').style.width = Math.round(doneCount/totalCount*100)+'%';
+
+  /* ---- KaTeX render (over the whole body, incl. hidden derivation source) ---- */
+  function renderMath(){
+    if (window.renderMathInElement){
+      renderMathInElement(document.body, {
+        delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}],
+        throwOnError:false
+      });
+    }
+    postHeight();
+  }
+  if (document.readyState !== 'loading') renderMath();
+  else window.addEventListener('DOMContentLoaded', renderMath);
+
+  /* ---- report content height to parent so the iframe can size itself ---- */
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, '*'); }catch(e){} };
+  window.addEventListener('load', postHeight);
+  window.addEventListener('resize', postHeight);
+  document.addEventListener('click', function(){ setTimeout(postHeight, 60); });
+  if (window.ResizeObserver){ try{ new ResizeObserver(postHeight).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(postHeight, d); });
+  postHeight();
+})();
+</script>
+</body>
+</html>
