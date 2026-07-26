@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Tokenization from Scratch: BPE, Byte-Level BPE, Unigram, and Why LLMs Fail at Spelling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d;
+    --panel:#131c27;
+    --panel-2:#192533;
+    --ink:#eef4fb;
+    --dim:#9db0c6;
+    --faint:#647889;
+    --lime:#b6e84f;         /* merges / build-up */
+    --pink:#ff8cc6;          /* tokens */
+    --cyan:#59d4e6;          /* bytes / structure */
+    --danger:#ff7a7a;
+    --line:#233243;
+    --line-soft:#1b2836;
+    --f-display:'Space Grotesk', system-ui, sans-serif;
+    --f-body:'Inter', system-ui, sans-serif;
+    --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px;
+    --maxw:760px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.15;letter-spacing:-.01em}
+  h2{font-size:1.72rem;font-weight:600;margin:2.4rem 0 .5rem}
+  h3{font-size:1.24rem;font-weight:600;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0}
+  a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(89,212,230,.35)}
+  a:hover{border-bottom-color:var(--cyan)}
+  strong{color:#fff;font-weight:600}
+  .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.9em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:
+    radial-gradient(1100px 340px at 10% -8%, rgba(182,232,79,.10), transparent 60%),
+    radial-gradient(900px 340px at 98% 0%, rgba(255,140,198,.09), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--lime);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:700;font-size:2.7rem;line-height:1.05;letter-spacing:-.02em;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--lime),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.16rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)}
+  .chip b{color:var(--cyan);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--lime);background:linear-gradient(180deg,rgba(182,232,79,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--lime);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)}
+  .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  figure{margin:22px 0}
+  figcaption{font-size:.85rem;color:var(--faint);margin-top:8px;text-align:center}
+  figcaption b{color:var(--dim);font-weight:600}
+  .svgwrap{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px;overflow-x:auto}
+  svg{display:block;max-width:100%;height:auto;margin:0 auto}
+  .measured-tag,.illus-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--cyan);background:rgba(89,212,230,.12);border:1px solid rgba(89,212,230,.3)}
+  .illus-tag{color:var(--lime);background:rgba(182,232,79,.12);border:1px solid rgba(182,232,79,.3)}
+  table.data{width:100%;border-collapse:collapse;font-size:.9rem;margin:14px 0}
+  table.data th,table.data td{border-bottom:1px solid var(--line-soft);padding:9px 10px;text-align:left}
+  table.data th{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:500}
+  table.data td.num{font-family:var(--f-mono);text-align:right;color:var(--cyan)}
+  table.data tr:last-child td{border-bottom:0}
+  .scroll{overflow-x:auto}
+  /* token chips */
+  .toks{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0;font-family:var(--f-mono);font-size:.9rem}
+  .tk{background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:3px 8px;color:var(--pink);white-space:pre}
+  .tk.byte{color:var(--cyan)}
+  .tk.chr{color:var(--dim)}
+  .tk .sp{color:var(--faint)}
+  /* widget */
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.06rem;font-weight:600}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:600px){.wgrid{grid-template-columns:1fr}}
+  .wcol h5{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:0 0 8px}
+  .corpus-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-family:var(--f-mono);font-size:.9rem;flex-wrap:wrap}
+  .corpus-row .freq{color:var(--faint);font-size:.78rem}
+  .sym{display:inline-block;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;margin:1px;color:var(--ink)}
+  .sym.new{border-color:var(--lime);color:var(--lime);background:rgba(182,232,79,.1)}
+  .ptable{font-family:var(--f-mono);font-size:.82rem;width:100%;border-collapse:collapse}
+  .ptable td{padding:3px 6px;border-bottom:1px solid var(--line-soft)}
+  .ptable td.p{color:var(--pink)}
+  .ptable td.c{text-align:right;color:var(--cyan)}
+  .ptable tr.win td{background:rgba(182,232,79,.08)}
+  .ptable tr.win td.p{color:var(--lime)}
+  .mergelist{font-family:var(--f-mono);font-size:.84rem;line-height:1.9}
+  .mergelist .m{color:var(--lime)}
+  .mergelist .i{color:var(--faint);margin-right:6px}
+  .wbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;align-items:center}
+  button.btn{font-family:var(--f-mono);font-size:.76rem;letter-spacing:.03em;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;transition:border-color .15s,background .15s}
+  button.btn:hover{border-color:var(--lime);background:#1e2b26}
+  button.btn:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  button.btn.primary{border-color:var(--lime);color:var(--lime)}
+  button.btn:disabled{opacity:.4;cursor:not-allowed}
+  .tokbox{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+  .tokbox input[type=text]{font-family:var(--f-mono);font-size:.95rem;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:9px 11px;width:100%;max-width:280px}
+  .tokbox input:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+  .statline{font-family:var(--f-mono);font-size:.82rem;color:var(--faint);margin-top:6px}
+  .statline b{color:var(--pink)}
+  ul{padding-left:1.2em}
+  li{margin:.4rem 0}
+  hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem}
+  .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0}
+  .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--lime);margin-right:8px}
+  @media (max-width:520px){h1{font-size:2.05rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Bedrock &nbsp;/&nbsp; what the model actually reads</p>
+    <h1>A language model has <span class="g">never seen a letter</span></h1>
+    <p class="standfirst">It reads integers. Before training, a tokenizer chops all text into chunks from a fixed vocabulary and hands the model their ID numbers. That single lossy step — which letter-clusters get fused into one atom — quietly decides what the model can and cannot reason about. Here is how tokenizers are built, from character-level to byte-level BPE, and why they are behind a startling number of LLM failures.</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~20 min</span>
+      <span class="chip"><b>algorithm</b> &nbsp;BPE, step by step</span>
+      <span class="chip"><b>interactive</b> &nbsp;train a tokenizer</span>
+      <span class="chip"><b>series</b> &nbsp;Bedrock · 2</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <p>Ask a frontier model how many times the letter <strong>r</strong> appears in <code>strawberry</code> and it will, embarrassingly often, say two. This gets passed around as evidence that LLMs "can't reason". It is nothing of the sort. It is a <em>perception</em> bug, and it happens one layer below reasoning — in tokenization.</p>
+
+    <p>Here is what the model is actually handed when you type <code>strawberry</code>:</p>
+    <div class="toks" aria-label="the word strawberry split into three subword tokens">
+      <span class="tk">str</span><span class="tk">aw</span><span class="tk">berry</span>
+      <span style="align-self:center;color:var(--faint);font-family:var(--f-mono);font-size:.8rem">&nbsp;→ IDs like [str, aw, berry] → [1618, 707, 15717]</span>
+    </div>
+    <p>Three chunks, each a single opaque integer. The individual letters — the three <strong>r</strong>'s — are <em>fused inside</em> those chunks and are not separately visible to the network any more than you can taste the individual flour molecules in a baked cake. Asking the model to count letters is asking it to read something it was never given. <span class="illus-tag">split &amp; IDs illustrative</span></p>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">A token is the <strong>atom of perception</strong> for a language model: the smallest thing it can see. Everything below the token — individual letters, individual digits, byte boundaries — is invisible unless it happens to be its own token. Tokenization is the lens that decides where those atoms fall, and it is built <em>before</em> the model ever trains.</p>
+    </div>
+
+    <p>So the real questions are: what should an atom be? how do you choose the vocabulary of atoms from raw text? and what breaks because of the choice? We will answer all three, and you will train a real (tiny) tokenizer by hand along the way.</p>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>Two obvious atoms, and why both fail</h2>
+    <p>The tokenizer's job: map text to a sequence of IDs from a fixed vocabulary of size <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span></span>, and back. Two granularities suggest themselves immediately.</p>
+
+    <h3>Atom = character</h3>
+    <p>Let every character be a token. The vocabulary is tiny (~100 symbols for English), and — crucially — <strong>nothing is ever out-of-vocabulary</strong>; any string is spellable. But the sequences are brutally long. "internationalization" is one concept and twenty tokens. Since a transformer's attention cost grows with the <em>square</em> of the sequence length, long sequences are expensive, and worse, each token carries almost no meaning on its own — the model must spend its early layers just reassembling words before it can think about them. Character models work but waste enormous capacity on clerical reassembly.</p>
+
+    <h3>Atom = word</h3>
+    <p>Let every word be a token. Sequences are short and each token is meaningful. But now the vocabulary explodes — English has hundreds of thousands of word forms — and it is <em>still</em> never enough. Every new name, typo, hashtag, or compound (<code>tokenization</code>, <code>SolidGoldMagikarp</code>, <code>covfefe</code>) is an <strong>out-of-vocabulary</strong> token the model can only render as a useless <code>&lt;UNK&gt;</code>. Morphology is thrown away too: <code>run</code>, <code>runs</code>, <code>running</code>, and <code>ran</code> become four unrelated atoms sharing nothing, so the model must relearn their kinship from scratch. Word-level tokenization is short but lossy and brittle.</p>
+
+    <div class="note">
+      <span class="t">The tension in one line</span>
+      Characters give a small, complete vocabulary but long, meaningless sequences. Words give short, meaningful sequences but an enormous, incomplete vocabulary. We want the good half of each: short-ish sequences, a bounded vocabulary, and <em>no</em> out-of-vocabulary failures.
+    </div>
+    <p class="next">The fix is to let the atom be a <em>subword</em> — and to learn, from data, exactly which letter-clusters are common enough to deserve their own atom.</p>
+  </section>
+
+  <section>
+    <h2>Byte-Pair Encoding: let the data pick the atoms</h2>
+    <p>Byte-Pair Encoding (BPE), borrowed from a 1994 data-compression trick and adapted to tokenization by Sennrich, Haddow, and Birch in 2016, resolves the tension with a greedy rule that is almost suspiciously simple:</p>
+
+    <div class="lede-idea">
+      <div class="lbl">The BPE training rule</div>
+      <p style="margin:.2rem 0 0">Start with every word split into individual characters. Then repeat: <strong>find the most frequent adjacent pair of symbols in the whole corpus, and merge it into one new symbol.</strong> Stop when the vocabulary reaches the size you wanted.</p>
+    </div>
+
+    <p>That is the entire algorithm. Common letter-clusters (<code>th</code>, <code>ing</code>, <code>tion</code>) get merged early and become single atoms; rare words never accumulate enough pair-frequency and stay in pieces. Frequent words end up as one token, rare ones as a handful of subwords, and — because we started from characters — <em>nothing is ever out-of-vocabulary</em>. You get the short sequences of word-level and the completeness of character-level, with a dial (the target vocabulary size) to trade between them.</p>
+
+    <h3>Watch it happen: a worked example</h3>
+    <p>Take a toy corpus of five distinct words with these counts: <code>hug</code>×10, <code>pug</code>×5, <code>pun</code>×12, <code>bun</code>×4, <code>hugs</code>×5. Split each into characters, then count every adjacent pair across the corpus, weighting by word frequency. The pair <code>("u","g")</code> appears in <code>hug</code>, <code>pug</code>, and <code>hugs</code> — a total of <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>10</mn><mo>+</mo><mn>5</mn><mo>+</mo><mn>5</mn><mo>=</mo><mn>20</mn></mrow><annotation encoding="application/x-tex">10 + 5 + 5 = 20</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">10</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">5</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">20</span></span></span></span></span> times, the most of any pair. So the first merge is <code>u&nbsp;g&nbsp;→&nbsp;ug</code>. Recount, and <code>("u","n")</code> now leads at <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mo>+</mo><mn>4</mn><mo>=</mo><mn>16</mn></mrow><annotation encoding="application/x-tex">12 + 4 = 16</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">12</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">4</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">16</span></span></span></span></span>; merge it. Recount again, and <code>("h","ug")</code> leads at <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>10</mn><mo>+</mo><mn>5</mn><mo>=</mo><mn>15</mn></mrow><annotation encoding="application/x-tex">10 + 5 = 15</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">10</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">5</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">15</span></span></span></span></span>; merge that. The vocabulary has grown by three learned atoms — <code>ug</code>, <code>un</code>, <code>hug</code> — each earned by frequency.</p>
+
+    <p>Rather than take my word for the counts, run the algorithm yourself. Each press of <strong>Merge</strong> finds the current most-frequent pair, fuses it everywhere, and updates the vocabulary. Then type a word into the tokenizer box and watch the learned merges apply to it, in order.</p>
+
+    <!-- ============ INTERACTIVE: BPE TRAINER ============ -->
+    <div class="widget" id="bpe">
+      <h4>Train a byte-pair tokenizer</h4>
+      <p class="sub">The corpus is fixed (hug×10, pug×5, pun×12, bun×4, hugs×5). Merge greedily by pair frequency; the winning pair is highlighted before each merge. This is the real algorithm, not a mock-up.</p>
+      <div class="wgrid">
+        <div class="wcol">
+          <h5>Corpus — current segmentation</h5>
+          <div id="corpus"></div>
+          <h5 style="margin-top:16px">Adjacent-pair frequencies</h5>
+          <table class="ptable"><tbody id="ptable"></tbody></table>
+        </div>
+        <div class="wcol">
+          <h5>Learned merges (vocabulary = <span id="vsize">7</span> atoms)</h5>
+          <div class="mergelist" id="merges"><span class="dim" style="font-size:.85rem">No merges yet — the vocabulary is the 7 base characters. Press Merge.</span></div>
+        </div>
+      </div>
+      <div class="wbtns">
+        <button class="btn primary" id="mergeBtn" type="button">▶ Merge most-frequent pair</button>
+        <button class="btn" id="resetBtn" type="button">Reset</button>
+        <span class="dim" id="mergeMsg" style="font-family:var(--f-mono);font-size:.8rem"></span>
+      </div>
+
+      <div class="tokbox">
+        <h5 style="font-family:var(--f-mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:0 0 8px">Tokenize a word with the merges learned so far</h5>
+        <input type="text" id="tokIn" value="hugs" spellcheck="false" aria-label="word to tokenize" maxlength="24">
+        <div class="toks" id="tokOut" style="margin-top:10px"></div>
+        <div class="statline" id="tokStat"></div>
+      </div>
+    </div>
+    <p class="dim" style="font-size:.9rem">Try <code>bug</code> (unseen word, but buildable from known atoms → <code>b</code>·<code>ug</code>), or <code>mug</code> — the <code>m</code> was never in the corpus, so a character-level base has no atom for it. That is the out-of-vocabulary hole that <em>byte-level</em> BPE plugs next.</p>
+    <p class="next">Two loose ends remain: what happens to characters the tokenizer never saw during training, and how do we keep merges from gluing across word boundaries. GPT-2 answered both.</p>
+  </section>
+
+  <section>
+    <h2>Byte-level BPE: the trick every modern tokenizer inherited</h2>
+    <p>In 2019, GPT-2 made one change that fixed out-of-vocabulary tokens forever: <strong>start from raw bytes, not characters.</strong> Any text in any language — English, Chinese, emoji, source code, a corrupted binary blob — is ultimately a sequence of bytes, and there are exactly 256 possible byte values. Seed the base vocabulary with all 256 of them and <em>every conceivable string is representable</em>, because in the worst case a token falls back to its individual bytes. There is no <code>&lt;UNK&gt;</code>, ever. BPE then merges byte-pairs upward exactly as before.</p>
+
+    <p>This is why GPT-2's vocabulary size is the oddly specific <strong>50,257</strong>, a number worth decomposing because it <em>is</em> the recipe:</p>
+
+    <div class="eqbox">
+    <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munder><munder><mn>256</mn><mo stretchy="true">⏟</mo></munder><mtext>raw byte values</mtext></munder><mtext>  </mtext><mo>+</mo><mtext>  </mtext><munder><munder><mn>50,000</mn><mo stretchy="true">⏟</mo></munder><mtext>learned BPE merges</mtext></munder><mtext>  </mtext><mo>+</mo><mtext>  </mtext><munder><munder><mn>1</mn><mo stretchy="true">⏟</mo></munder><mtext mathvariant="monospace">&lt;|endoftext|&gt;</mtext></munder><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mn>50,257.</mn></mrow><annotation encoding="application/x-tex">\underbrace{256}_{\text{raw byte values}} \;+\; \underbrace{50{,}000}_{\text{learned BPE merges}} \;+\; \underbrace{1}_{\texttt{&lt;|endoftext|&gt;}} \;=\; 50{,}257.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:2.1147em;vertical-align:-1.4702em;"></span><span class="minner munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6444em;"><span style="top:-1.6659em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">raw byte values</span></span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="minner munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6444em;"><span class="svg-align" style="top:-2.352em;"><span class="pstrut" style="height:3em;"></span><span class="katex-stretchy" style="height:0.548em;min-width:1.6em;"><span class="brace-left" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMinYMin slice"><path d="M0 6l6-6h17c12.688 0 19.313.3 20 1 4 4 7.313 8.3 10 13
+ 35.313 51.3 80.813 93.8 136.5 127.5 55.688 33.7 117.188 55.8 184.5 66.5.688
+ 0 2 .3 4 1 18.688 2.7 76 4.3 172 5h399450v120H429l-6-1c-124.688-8-235-61.7
+-331-161C60.687 138.7 32.312 99.3 7 54L0 41V6z"/></svg></span><span class="brace-center" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMidYMin slice"><path d="M199572 214
+c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
+ 53.3-86.7 123.7-153 211-199 66.7-36 137.3-56.3 212-62h199568v120H200432c-178.3
+ 11.7-311.7 78.3-403 201-6 8-9.7 12-11 12-.7.7-6.7 1-18 1s-17.3-.3-18-1c-1.3 0
+-5-4-11-12-44.7-59.3-101.3-106.3-170-141s-145.3-54.3-229-60H0V214z"/></svg></span><span class="brace-right" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMaxYMin slice"><path d="M399994 0l6 6v35l-6 11c-56 104-135.3 181.3-238 232-57.3
+ 28.7-117 45-179 50H-300V214h399897c43.3-7 81-15 113-26 100.7-33 179.7-91 237
+-174 2.7-5 6-9 10-13 .7-1 7.3-1 20-1h17z"/></svg></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">256</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.648em;"><span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.4702em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.3091em;vertical-align:-1.6647em;"></span><span class="minner munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6444em;"><span style="top:-1.4715em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">learned BPE merges</span></span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="minner munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6444em;"><span class="svg-align" style="top:-2.1576em;"><span class="pstrut" style="height:3em;"></span><span class="katex-stretchy" style="height:0.548em;min-width:1.6em;"><span class="brace-left" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMinYMin slice"><path d="M0 6l6-6h17c12.688 0 19.313.3 20 1 4 4 7.313 8.3 10 13
+ 35.313 51.3 80.813 93.8 136.5 127.5 55.688 33.7 117.188 55.8 184.5 66.5.688
+ 0 2 .3 4 1 18.688 2.7 76 4.3 172 5h399450v120H429l-6-1c-124.688-8-235-61.7
+-331-161C60.687 138.7 32.312 99.3 7 54L0 41V6z"/></svg></span><span class="brace-center" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMidYMin slice"><path d="M199572 214
+c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
+ 53.3-86.7 123.7-153 211-199 66.7-36 137.3-56.3 212-62h199568v120H200432c-178.3
+ 11.7-311.7 78.3-403 201-6 8-9.7 12-11 12-.7.7-6.7 1-18 1s-17.3-.3-18-1c-1.3 0
+-5-4-11-12-44.7-59.3-101.3-106.3-170-141s-145.3-54.3-229-60H0V214z"/></svg></span><span class="brace-right" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMaxYMin slice"><path d="M399994 0l6 6v35l-6 11c-56 104-135.3 181.3-238 232-57.3
+ 28.7-117 45-179 50H-300V214h399897c43.3-7 81-15 113-26 100.7-33 179.7-91 237
+-174 2.7-5 6-9 10-13 .7-1 7.3-1 20-1h17z"/></svg></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">50</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8424em;"><span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.6647em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.0369em;vertical-align:-1.3924em;"></span><span class="minner munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6444em;"><span style="top:-1.6659em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord texttt mtight">&lt;|endoftext|&gt;</span></span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="minner munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6444em;"><span class="svg-align" style="top:-2.352em;"><span class="pstrut" style="height:3em;"></span><span class="katex-stretchy" style="height:0.548em;min-width:1.6em;"><span class="brace-left" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMinYMin slice"><path d="M0 6l6-6h17c12.688 0 19.313.3 20 1 4 4 7.313 8.3 10 13
+ 35.313 51.3 80.813 93.8 136.5 127.5 55.688 33.7 117.188 55.8 184.5 66.5.688
+ 0 2 .3 4 1 18.688 2.7 76 4.3 172 5h399450v120H429l-6-1c-124.688-8-235-61.7
+-331-161C60.687 138.7 32.312 99.3 7 54L0 41V6z"/></svg></span><span class="brace-center" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMidYMin slice"><path d="M199572 214
+c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
+ 53.3-86.7 123.7-153 211-199 66.7-36 137.3-56.3 212-62h199568v120H200432c-178.3
+ 11.7-311.7 78.3-403 201-6 8-9.7 12-11 12-.7.7-6.7 1-18 1s-17.3-.3-18-1c-1.3 0
+-5-4-11-12-44.7-59.3-101.3-106.3-170-141s-145.3-54.3-229-60H0V214z"/></svg></span><span class="brace-right" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="0.548em" viewBox="0 0 400000 548" preserveAspectRatio="xMaxYMin slice"><path d="M399994 0l6 6v35l-6 11c-56 104-135.3 181.3-238 232-57.3
+ 28.7-117 45-179 50H-300V214h399897c43.3-7 81-15 113-26 100.7-33 179.7-91 237
+-174 2.7-5 6-9 10-13 .7-1 7.3-1 20-1h17z"/></svg></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.648em;"><span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.3924em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">50</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">257.</span></span></span></span></span>
+    </div>
+
+    <p>256 base atoms guarantee completeness; 50,000 merges buy back short sequences for common English; one special token marks document boundaries. Every major tokenizer since — GPT-3, GPT-4's <code>cl100k</code>, Llama, and most others — is a byte-level BPE that differs mainly in the merge count and the pre-tokenization rules.</p>
+
+    <h3>Pre-tokenization: don't merge across the spaces</h3>
+    <p>One subtlety makes byte-level BPE behave. Before counting pairs, GPT-2 first splits the text with a regular expression into rough chunks — runs of letters, runs of digits, runs of whitespace, punctuation — and only ever merges <em>within</em> a chunk. Without this, BPE would happily learn a single token for <code>"the "</code> including its trailing space, or fuse the end of one word with the start of the next, producing a vocabulary riddled with alignment quirks. Pre-tokenization is also why a leading space is usually part of the following token: to the tokenizer, <code>" token"</code> (with space) and <code>"token"</code> (without) are <em>different</em> atoms — a fact that quietly bites anyone who splits prompts on word boundaries.</p>
+    <p class="next">BPE builds a vocabulary bottom-up by gluing. A rival family does the opposite — start huge and carve away — and it powers most non-GPT models.</p>
+  </section>
+
+  <section>
+    <h2>The other lineage: WordPiece and Unigram</h2>
+    <p>BPE is one of three subword schemes you will meet. They agree on the goal (a bounded subword vocabulary with no OOV) and differ on the rule for building it.</p>
+
+    <div class="scroll">
+    <table class="data">
+      <thead><tr><th>Scheme</th><th>Used by</th><th>How the vocabulary is built</th><th>Direction</th></tr></thead>
+      <tbody>
+        <tr><td><strong>BPE</strong></td><td>GPT-2/3/4, Llama</td><td>merge the most <em>frequent</em> adjacent pair, repeatedly</td><td>build up</td></tr>
+        <tr><td><strong>WordPiece</strong></td><td>BERT, DistilBERT</td><td>merge the pair that most increases corpus <em>likelihood</em> (frequency of pair ÷ frequency of parts)</td><td>build up</td></tr>
+        <tr><td><strong>Unigram</strong></td><td>T5, ALBERT, most SentencePiece models</td><td>start with a huge vocabulary, iteratively <em>remove</em> the tokens whose loss hurts corpus likelihood least</td><td>prune down</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p><strong>WordPiece</strong> (BERT) is BPE with a smarter merge score: instead of raw pair frequency it merges the pair that most improves the likelihood of the corpus under a unigram model, which is the frequency of the pair divided by the product of its parts' frequencies. This favors pairs that co-occur <em>more than chance would predict</em>, not merely pairs that are common because their parts are common.</p>
+
+    <p><strong>Unigram</strong> (Kudo, 2018), usually delivered via Google's <strong>SentencePiece</strong> library, runs the logic backwards. It seeds an intentionally oversized vocabulary of candidate subwords, fits a probabilistic model in which every token has a probability and a word's segmentation is chosen to maximize likelihood, then repeatedly <em>drops</em> the tokens whose removal costs the least likelihood — pruning down to the target size. Because it is probabilistic, it can represent a word by <em>multiple</em> candidate segmentations with different probabilities (useful for regularization), and because SentencePiece treats the input as a raw stream and encodes spaces as a visible <code>▁</code> marker, it needs no language-specific pre-tokenization — a big reason it dominates multilingual and non-whitespace languages.</p>
+
+    <div class="note">
+      <span class="t">Rule of thumb</span>
+      BPE and WordPiece <em>grow</em> a vocabulary by gluing common pieces together; Unigram <em>carves</em> one out of an oversized set by deleting the least useful pieces. At a 32K vocabulary the two families perform within a whisker of each other; their differences show up at the extremes of vocabulary size and in multilingual settings.
+    </div>
+  </section>
+
+  <section>
+    <h2>The vocabulary-size dial</h2>
+    <p>Every tokenizer decision collapses into one number you must choose up front: <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span></span>, the vocabulary size. It is a genuine trade-off with costs on both sides, which is why there is no single right answer and why it has crept from ~30K in the BERT era toward 128K–256K in recent models.</p>
+
+    <p><strong>Bigger <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span></span> shortens sequences.</strong> More and longer atoms means the same document becomes fewer tokens. Since attention cost scales with the square of sequence length, and since a fixed context window then holds <em>more</em> text, this is a real and compounding win — fewer steps to generate, more document per context.</p>
+
+    <p><strong>Bigger <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span></span> inflates the model and starves rare tokens.</strong> The token-embedding table and the output softmax each have one row per vocabulary entry, so their parameter count is</p>
+
+    <div class="eqbox">
+    <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>embedding + unembedding params</mtext><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mn>2</mn><mtext> </mtext><mi>V</mi><mtext> </mtext><msub><mi>d</mi><mtext>model</mtext></msub><mo separator="true">,</mo></mrow><annotation encoding="application/x-tex">\text{embedding + unembedding params} \;=\; 2 \, V \, d_{\text{model}},</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">embedding + unembedding params</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">model</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span></span></span></span></span>
+    </div>
+
+    <p>linear in <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span></span>. At <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mtext>model</mtext></msub><mo>=</mo><mn>4096</mn></mrow><annotation encoding="application/x-tex">d_{\text{model}} = 4096</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">model</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">4096</span></span></span></span></span>, going from a 32K to a 256K vocabulary grows just these two tables from ~0.26B to ~2.1B parameters — before the transformer proper. And a rare atom that appears a handful of times in training gets a poorly estimated embedding: push <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span></span> too high and you mint thousands of under-trained tokens (which, as we are about to see, is how monsters are made).</p>
+
+    <figure>
+      <div class="svgwrap">
+        <svg viewBox="0 0 640 260" role="img" aria-label="As vocabulary size grows, tokens per document fall while embedding parameters rise, illustrating the trade-off.">
+          <line x1="60" y1="24" x2="60" y2="212" stroke="#233243"/>
+          <line x1="60" y1="212" x2="600" y2="212" stroke="#233243"/>
+          <g font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#647889">
+            <text x="90"  y="230">8K</text><text x="200" y="230">32K</text><text x="330" y="230">64K</text><text x="450" y="230">128K</text><text x="560" y="230">256K</text>
+            <text x="300" y="250" fill="#9db0c6" font-size="11.5" text-anchor="middle">vocabulary size V →</text>
+          </g>
+          <!-- tokens/doc curve (falling) : lime -->
+          <polyline fill="none" stroke="#b6e84f" stroke-width="2.4" points="90,54 200,96 330,128 450,152 560,170"/>
+          <g font-family="'JetBrains Mono',monospace" font-size="10" fill="#b6e84f">
+            <circle cx="90" cy="54" r="3.2"/><circle cx="200" cy="96" r="3.2"/><circle cx="330" cy="128" r="3.2"/><circle cx="450" cy="152" r="3.2"/><circle cx="560" cy="170" r="3.2"/>
+            <text x="96" y="48">tokens per document ↓ (good)</text>
+          </g>
+          <!-- params curve (rising) : pink -->
+          <polyline fill="none" stroke="#ff8cc6" stroke-width="2.4" points="90,205 200,196 330,180 450,148 560,66"/>
+          <g font-family="'JetBrains Mono',monospace" font-size="10" fill="#ff8cc6">
+            <circle cx="90" cy="205" r="3.2"/><circle cx="200" cy="196" r="3.2"/><circle cx="330" cy="180" r="3.2"/><circle cx="450" cy="148" r="3.2"/><circle cx="560" cy="66" r="3.2"/>
+            <text x="360" y="60">embedding params ↑ (cost)</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>The dial. Larger vocabularies cut the token bill per document but swell the embedding/softmax tables (∝ <b>V·d</b>) and thin out per-token training signal. Modern models settle around 100K–256K. <span class="illus-tag">shapes illustrative; params relation exact</span></figcaption>
+    </figure>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>Why tokenization causes weird LLM failures</h2>
+    <p>Everything above pays off here. A striking share of "the model is dumb" moments are really "the model was handed the wrong atoms" moments. Five of the most common:</p>
+
+    <h3>1. Spelling and letter-counting</h3>
+    <p>The <code>strawberry</code> problem from the top. The model reasons over tokens, and letters are fused inside them, so any task that requires per-letter access — counting letters, reversing a string, finding rhymes, pig latin — fights the representation. The model can sometimes reconstruct spelling from memorized associations, but it is working against the grain of what it can perceive, not exercising or failing at logic.</p>
+
+    <h3>2. Arithmetic</h3>
+    <p>Numbers are tokenized by the same frequency-driven BPE as words, which chops them into <em>arbitrary</em> multi-digit chunks: <code>1234</code> might be one token while <code>1235</code> is two, and the grouping carries no place-value structure. A model that sees <code>327</code> and <code>328</code> as unrelated atoms with no shared "hundreds digit" has to memorize arithmetic facts rather than compute them. It is no accident that several recent tokenizers deliberately force numbers to split into <strong>single digits</strong>, restoring a consistent per-digit representation and measurably improving arithmetic.</p>
+
+    <h3>3. Glitch tokens — the SolidGoldMagikarp affair</h3>
+    <p>In 2023, researchers found tokens that made GPT-2 and GPT-3 behave bizarrely — refusing to repeat them, emitting unrelated words, insulting the user, breaking determinism. The most infamous was <code>SolidGoldMagikarp</code>; others included <code>TheNitromeFan</code>, <code>RandomRedditorWithNo</code>, and <code>BuyableInstoreAndOnline</code>. The cause is pure tokenization pathology: the BPE vocabulary was trained on a corpus (heavy with Reddit and scraped web junk) in which these strings were common enough to earn their own token — but the <em>language-model training data</em> barely contained them. So the model held atoms whose embeddings were <strong>almost never trained</strong>, leaving them as un-optimized noise vectors pointing in random directions of representation space. Feed one in and the model has, quite literally, no idea what it is looking at.</p>
+
+    <div class="note">
+      <span class="t">The lesson under the monster</span>
+      Glitch tokens are what happens when the tokenizer and the model are trained on <em>different</em> data. The vocabulary is frozen before training, so any mismatch mints atoms the network never learns to interpret. It is a vivid reminder that the tokenizer is a real, separately-trained component with its own failure modes — not a neutral pass-through.
+    </div>
+
+    <h3>4. Multilingual inequality</h3>
+    <p>A tokenizer trained mostly on English spends its 50,000 merges buying short tokens for English words. The same sentence in a language it saw less of — Hindi, Burmese, Thai — falls back toward bytes and can cost several times as many tokens. Because you pay per token and the context window is counted in tokens, speakers of under-represented languages get <strong>higher bills, slower responses, and less usable context for the identical meaning</strong>. Tokenization bakes a fairness gap in before a single weight is trained.</p>
+
+    <h3>5. Prompt-boundary brittleness</h3>
+    <p>Because <code>" word"</code> and <code>"word"</code> are different atoms, a trailing space in a prompt, or splitting a few-shot example on the wrong boundary, can shift the model onto token sequences it rarely saw in training and degrade output for no reason visible in the text. "Never end your prompt with a space" is folklore with a precise tokenization cause.</p>
+  </section>
+
+  <section>
+    <h2>Where this goes next</h2>
+    <p>Two threads lead out. The first is the recurring question of whether we need tokenization at all: <strong>byte-level and token-free models</strong> (from ByT5 to recent byte-latent approaches) push the atom all the way down to raw bytes and let the network learn the chunking, trading tokenizer pathologies for longer sequences and more compute. The tokenizer is one of the last hand-designed, non-learned components in the stack, and there is steady pressure to dissolve it.</p>
+    <p>The second connects straight back to the companion post on <a href="/blog/language-modeling-next-token/">language modeling and perplexity</a>. Recall that perplexity is a <em>per-token</em> quantity — which is exactly why you cannot compare the perplexities of two models with different tokenizers. A model with a larger vocabulary spreads the same text over fewer, individually-harder tokens; its per-token surprise is not measuring the same thing. The atom you choose here silently sets the units of everything the model is trained and judged on. Tokenization is not preprocessing. It is the ground floor.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/1508.07909" target="_blank" rel="noopener">Sennrich, Haddow &amp; Birch (2016) — Neural Machine Translation of Rare Words with Subword Units</a><br><span class="dim" style="font-size:.86rem">The paper that brought BPE to NLP. The source of the whole subword idea.</span></li>
+        <li><span class="rt">explainer</span> <a href="https://huggingface.co/learn/nlp-course/chapter6/5" target="_blank" rel="noopener">Hugging Face NLP Course — Byte-Pair Encoding tokenization</a><br><span class="dim" style="font-size:.86rem">The clearest step-by-step of the merge algorithm; the exact source of the hug/pug worked example above.</span></li>
+        <li><span class="rt">video/code</span> <a href="https://github.com/karpathy/minbpe/blob/master/lecture.md" target="_blank" rel="noopener">Andrej Karpathy — minbpe &amp; "Let's build the GPT Tokenizer"</a><br><span class="dim" style="font-size:.86rem">Builds byte-level BPE from scratch and catalogs the tokenization failure modes. The best hands-on resource.</span></li>
+        <li><span class="rt">writeup</span> <a href="https://simonwillison.net/2024/Feb/20/lets-build-the-gpt-tokenizer/" target="_blank" rel="noopener">Simon Willison — notes on Karpathy's tokenizer talk</a><br><span class="dim" style="font-size:.86rem">A concise written companion to the video, good for skimming the key points.</span></li>
+        <li><span class="rt">artifact</span> <a href="https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-generation" target="_blank" rel="noopener">Rumbelow &amp; Watkins (2023) — SolidGoldMagikarp (plus, prompt generation)</a><br><span class="dim" style="font-size:.86rem">The original glitch-token investigation. Where the SolidGoldMagikarp story comes from.</span></li>
+      </ul>
+
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">The <b>hug/pug</b> training example and its three merges (<code>ug</code>, <code>un</code>, <code>hug</code>) are exact and reproduce the Hugging Face course; the interactive trainer runs the real greedy algorithm on that corpus, so its counts are computed, not scripted. The <code>strawberry</code> split and its ID numbers are <b>illustrative</b> — the mechanism (letters fused inside tokens) is what matters, and exact splits differ by tokenizer. The GPT-2 vocabulary decomposition (256 + 50,000 + 1 = 50,257) is <b>measured</b>. The vocabulary-size figure's curve <em>shapes</em> are illustrative; the embedding-parameter relation <span style="white-space:nowrap">2·V·d</span> is exact. The glitch-token account follows the Rumbelow &amp; Watkins writeup and its documented root cause (tokenizer / training-data mismatch producing under-trained token embeddings).</p>
+    </div>
+  </div>
+
+</main>
+<!--KATEX-END-->
+
+<script>
+(function(){
+  "use strict";
+  // ---------- fixed toy corpus ----------
+  var CORPUS = [
+    {w:"hug", f:10},{w:"pug", f:5},{w:"pun", f:12},{w:"bun", f:4},{w:"hugs", f:5}
+  ];
+  var state, merges, baseVocabSize;
+
+  function reset(){
+    state = CORPUS.map(function(e){ return { sym:e.w.split(""), f:e.f }; });
+    merges = [];
+    // base vocabulary = distinct characters
+    var chars = {};
+    CORPUS.forEach(function(e){ e.w.split("").forEach(function(c){ chars[c]=1; }); });
+    baseVocabSize = Object.keys(chars).length;   // = 7 for this corpus
+    render();
+  }
+
+  function pairCounts(){
+    var counts = {}, order = [];
+    state.forEach(function(row){
+      for(var i=0;i<row.sym.length-1;i++){
+        var key = row.sym[i] + "" + row.sym[i+1];
+        if(!(key in counts)){ counts[key]=0; order.push(key); }
+        counts[key]+=row.f;
+      }
+    });
+    return {counts:counts, order:order};
+  }
+
+  function bestPair(){
+    var pc = pairCounts(), best=null, bestC=0;
+    // stable: first-encountered wins ties
+    pc.order.forEach(function(k){
+      if(pc.counts[k] > bestC){ bestC = pc.counts[k]; best = k; }
+    });
+    return best ? {key:best, count:bestC} : null;
+  }
+
+  function doMerge(){
+    var bp = bestPair();
+    if(!bp || bp.count < 2){ setMsg("No pair occurs more than once — training is done."); return false; }
+    var parts = bp.key.split("");
+    var a = parts[0], b = parts[1], merged = a + b;
+    state.forEach(function(row){
+      var out=[], i=0;
+      while(i < row.sym.length){
+        if(i < row.sym.length-1 && row.sym[i]===a && row.sym[i+1]===b){ out.push(merged); i+=2; }
+        else { out.push(row.sym[i]); i+=1; }
+      }
+      row.sym = out;
+    });
+    merges.push({a:a, b:b, merged:merged, count:bp.count});
+    setMsg("Merged (" + a + ", " + b + ") → " + merged + "  ·  seen " + bp.count + "×");
+    render();
+    return true;
+  }
+
+  // ---------- tokenizer: apply learned merges in order ----------
+  function tokenize(word){
+    var sym = word.split("");
+    merges.forEach(function(m){
+      var out=[], i=0;
+      while(i<sym.length){
+        if(i<sym.length-1 && sym[i]===m.a && sym[i+1]===m.b){ out.push(m.merged); i+=2; }
+        else { out.push(sym[i]); i+=1; }
+      }
+      sym = out;
+    });
+    return sym;
+  }
+
+  // ---------- rendering ----------
+  var elCorpus=document.getElementById("corpus"),
+      elPtable=document.getElementById("ptable"),
+      elMerges=document.getElementById("merges"),
+      elVsize=document.getElementById("vsize"),
+      elMsg=document.getElementById("mergeMsg"),
+      elMergeBtn=document.getElementById("mergeBtn");
+  if(!elCorpus){ return; }
+
+  function setMsg(t){ if(elMsg) elMsg.textContent=t; }
+
+  function render(){
+    var bp = bestPair();
+    var winKey = (bp && bp.count>=2) ? bp.key : null;
+
+    // corpus segmentation
+    elCorpus.innerHTML="";
+    state.forEach(function(row){
+      var div=document.createElement("div"); div.className="corpus-row";
+      row.sym.forEach(function(s, idx){
+        var span=document.createElement("span"); span.className="sym";
+        // highlight the winning pair occurrences
+        if(winKey){
+          var parts=winKey.split("");
+          if(s===parts[0] && idx<row.sym.length-1 && row.sym[idx+1]===parts[1]) span.className="sym new";
+          if(s===parts[1] && idx>0 && row.sym[idx-1]===parts[0]) span.className="sym new";
+        }
+        span.textContent=s; div.appendChild(span);
+      });
+      var f=document.createElement("span"); f.className="freq"; f.textContent="×"+row.f;
+      div.appendChild(f);
+      elCorpus.appendChild(div);
+    });
+
+    // pair table (top 6)
+    var pc=pairCounts();
+    var rows=pc.order.map(function(k){ return {k:k, c:pc.counts[k]}; })
+                     .sort(function(x,y){ return y.c-x.c; }).slice(0,6);
+    elPtable.innerHTML="";
+    if(rows.length===0){
+      var tr=document.createElement("tr"); tr.innerHTML="<td class='dim' style='color:#647889'>no adjacent pairs left</td>";
+      elPtable.appendChild(tr);
+    }
+    rows.forEach(function(r){
+      var parts=r.k.split("");
+      var tr=document.createElement("tr"); if(r.k===winKey) tr.className="win";
+      tr.innerHTML="<td class='p'>("+parts[0]+", "+parts[1]+")</td><td class='c'>"+r.c+"</td>";
+      elPtable.appendChild(tr);
+    });
+
+    // merges list
+    if(merges.length===0){
+      elMerges.innerHTML="<span class='dim' style='font-size:.85rem'>No merges yet — the vocabulary is the "+baseVocabSize+" base characters. Press Merge.</span>";
+    } else {
+      elMerges.innerHTML=merges.map(function(m,i){
+        return "<div><span class='i'>"+(i+1)+".</span><span class='m'>"+m.a+" + "+m.b+" → "+m.merged+"</span> <span class='dim' style='font-size:.78rem'>("+m.count+"×)</span></div>";
+      }).join("");
+    }
+    elVsize.textContent = baseVocabSize + merges.length;
+
+    elMergeBtn.disabled = !(bp && bp.count>=2);
+
+    renderTok();
+    postHeight();
+  }
+
+  // tokenizer box
+  var elTokIn=document.getElementById("tokIn"),
+      elTokOut=document.getElementById("tokOut"),
+      elTokStat=document.getElementById("tokStat");
+
+  function renderTok(){
+    if(!elTokIn) return;
+    var word=(elTokIn.value||"").trim().toLowerCase().replace(/[^a-z]/g,"");
+    elTokOut.innerHTML="";
+    if(!word){ elTokStat.textContent=""; return; }
+    var toks=tokenize(word);
+    var baseChars={}; CORPUS.forEach(function(e){ e.w.split("").forEach(function(c){ baseChars[c]=1; }); });
+    var oov=0;
+    toks.forEach(function(t){
+      var span=document.createElement("span"); span.className="tk";
+      // single char not in the corpus base vocab => would be OOV at char level
+      if(t.length===1 && !(t in baseChars)){ span.className="tk chr"; span.title="not in the character base vocabulary"; oov++; }
+      span.textContent=t; elTokOut.appendChild(span);
+    });
+    var msg="<b>"+toks.length+"</b> token"+(toks.length===1?"":"s")+" from "+word.length+" characters";
+    if(oov>0) msg+=" · <span style='color:#ff7a7a'>"+oov+" char(s) with no atom</span> — byte-level BPE would cover these";
+    elTokStat.innerHTML=msg;
+  }
+
+  // ---------- wire up (define postHeight before first render) ----------
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight);
+  window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+
+  elMergeBtn.addEventListener("click", doMerge);
+  document.getElementById("resetBtn").addEventListener("click", function(){ setMsg(""); reset(); });
+  if(elTokIn) elTokIn.addEventListener("input", function(){ renderTok(); postHeight(); });
+
+  reset();
+})();
+</script>
+</body>
+</html>
