@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Causal Masking in Decoder-Only Transformers: the −∞ Mask, Teacher Forcing, and Training vs Inference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d;
+    --panel:#131b26;
+    --panel-2:#19232f;
+    --ink:#eef4fb;
+    --dim:#a0afc2;
+    --faint:#66788b;
+    --past:#49d6a0;         /* allowed / past */
+    --future:#ff6b6b;        /* blocked / future */
+    --now:#f2c14e;           /* current position */
+    --accent:#49d6a0;
+    --line:#243244;
+    --line-soft:#1b2532;
+    --f-display:'Outfit', system-ui, sans-serif;
+    --f-body:'Inter', system-ui, sans-serif;
+    --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px;
+    --maxw:760px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.15;letter-spacing:-.01em}
+  h2{font-size:1.72rem;font-weight:700;margin:2.4rem 0 .5rem}
+  h3{font-size:1.24rem;font-weight:600;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0}
+  a{color:var(--past);text-decoration:none;border-bottom:1px solid rgba(73,214,160,.35)}
+  a:hover{border-bottom-color:var(--past)}
+  strong{color:#fff;font-weight:600}
+  .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  .pastc{color:var(--past);font-weight:600}.futc{color:var(--future);font-weight:600}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:
+    radial-gradient(1100px 340px at 8% -8%, rgba(73,214,160,.10), transparent 60%),
+    radial-gradient(900px 340px at 98% 0%, rgba(255,107,107,.08), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--past);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:700;font-size:2.5rem;line-height:1.06;letter-spacing:-.02em;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--past),var(--now));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.15rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)}
+  .chip b{color:var(--past);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--past);background:linear-gradient(180deg,rgba(73,214,160,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--past);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .note.warn{border-color:rgba(255,107,107,.3);background:rgba(255,107,107,.05)}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)}
+  .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  figure{margin:22px 0}figcaption{font-size:.85rem;color:var(--faint);margin-top:8px;text-align:center}
+  figcaption b{color:var(--dim)}
+  .illus-tag,.measured-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--past);background:rgba(73,214,160,.12);border:1px solid rgba(73,214,160,.3)}
+  .illus-tag{color:var(--now);background:rgba(242,193,78,.12);border:1px solid rgba(242,193,78,.3)}
+  .scroll{overflow-x:auto}
+  /* widgets */
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.08rem;font-weight:600}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .wbtns{display:flex;gap:9px;flex-wrap:wrap;margin:6px 0 14px;align-items:center}
+  button.btn{font-family:var(--f-mono);font-size:.77rem;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;transition:border-color .15s,background .15s}
+  button.btn:hover{border-color:var(--past)}
+  button.btn:focus-visible{outline:2px solid var(--past);outline-offset:2px}
+  button.btn.on{border-color:var(--past);color:var(--past);background:rgba(73,214,160,.1)}
+  button.btn:disabled{opacity:.4;cursor:not-allowed}
+  /* attention grid */
+  .gridwrap{overflow-x:auto;padding-bottom:4px}
+  .agrid{display:grid;gap:3px;font-family:var(--f-mono);font-size:.72rem;min-width:340px}
+  .acell{aspect-ratio:1;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#0b1017;font-weight:600;border:1px solid transparent;min-height:34px}
+  .acell.hdr{background:transparent;color:var(--dim);font-weight:500;aspect-ratio:auto;min-height:0;padding:4px 2px}
+  .acell.rowlab{background:transparent;color:var(--dim);justify-content:flex-end;padding-right:6px;aspect-ratio:auto}
+  .acell.masked{background:repeating-linear-gradient(45deg,rgba(255,107,107,.12),rgba(255,107,107,.12) 4px,transparent 4px,transparent 8px);border:1px dashed rgba(255,107,107,.4);color:rgba(255,107,107,.7)}
+  .acell.diag{outline:2px solid var(--now)}
+  .rowsum{font-family:var(--f-mono);font-size:.7rem;color:var(--faint);display:flex;align-items:center;padding-left:6px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--f-mono);font-size:.72rem;color:var(--dim);margin-top:12px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .gcap{margin-top:12px;font-size:.9rem;color:var(--dim);background:rgba(73,214,160,.06);border:1px solid rgba(73,214,160,.2);border-radius:10px;padding:10px 13px}
+  .gcap.leak{background:rgba(255,107,107,.07);border-color:rgba(255,107,107,.25);color:#ffb0b0}
+  /* train/infer stepper */
+  .seq{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .tok{font-family:var(--f-mono);font-size:.85rem;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);position:relative}
+  .tok.past{border-color:var(--past);background:rgba(73,214,160,.12);color:var(--past)}
+  .tok.now{border-color:var(--now);background:rgba(242,193,78,.14);color:var(--now)}
+  .tok.future{opacity:.32;border-style:dashed}
+  .tok.pred{border-color:var(--now);color:var(--now)}
+  .pairgrid{display:grid;grid-template-columns:auto repeat(6,1fr);gap:5px;font-family:var(--f-mono);font-size:.76rem;align-items:center;min-width:420px}
+  .pg-lab{color:var(--faint);padding-right:6px;white-space:nowrap}
+  .pg-cell{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:6px;padding:6px 2px;text-align:center}
+  .pg-cell.inp{color:var(--dim)} .pg-cell.tgt{color:var(--now);border-color:rgba(242,193,78,.3)}
+  .stepline{font-family:var(--f-mono);font-size:.82rem;color:var(--dim);margin-top:10px}
+  .stepline b{color:var(--past)}
+  ul{padding-left:1.2em}li{margin:.4rem 0}
+  hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem}
+  .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0}
+  .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--past);margin-right:8px}
+  @media (max-width:520px){h1{font-size:1.95rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Phase 1 · Attention &nbsp;/&nbsp; the causal mask</p>
+    <h1>The one line that lets a model <span class="g">write left to right</span></h1>
+    <p class="standfirst">Self-attention lets every token see every other token — including the ones it is supposed to predict. A decoder-only transformer fixes this with a single trick: set the future to −∞ before the softmax. That one mask is what makes autoregressive generation possible, what lets training run in a single parallel pass, and where teacher forcing and its famous failure mode both come from.</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~19 min</span>
+      <span class="chip"><b>math</b> &nbsp;the −∞ mask</span>
+      <span class="chip"><b>interactive</b> &nbsp;mask a matrix · train vs infer</span>
+      <span class="chip"><b>series</b> &nbsp;Attention · 2</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <p>In the <a href="/blog/scaled-dot-product-attention/">last post</a> we built scaled dot-product attention and noted, in one sentence, that a decoder masks the future. That sentence hides the load-bearing idea of the whole decoder-only architecture. Here is why it is not optional.</p>
+
+    <p>You want to train a language model on the sentence <code>The cat sat on the mat</code>. The efficient thing is to predict <em>every</em> next token in a single forward pass: at position <code>The</code> predict <code>cat</code>, at <code>cat</code> predict <code>sat</code>, and so on — six predictions, one pass, one big gradient. But self-attention is promiscuous: it lets position <code>The</code> attend to <em>every</em> token in the sequence, including <code>cat</code> — the very token it is supposed to guess. The answer is sitting in the input.</p>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">A causal mask forbids every position from attending to any position to its right, by setting those attention scores to <strong>−∞ before the softmax</strong>. This makes a single parallel forward pass compute, at every position, exactly the prediction it <em>would</em> make if it had only seen the past. Training (all positions at once, on true tokens) and inference (one token at a time, on its own tokens) become the <strong>same function</strong> — and that identity is the entire decoder-only design.</p>
+    </div>
+
+    <p>We will watch the leak happen, plug it with −∞, and then trace how the very same mask produces both the efficiency of parallel training and the subtle bug that haunts generation.</p>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>The leak: attention can read the answer</h2>
+    <p>Recall the attention scores <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mo>=</mo><mi>Q</mi><msup><mi>K</mi><mi mathvariant="normal">⊤</mi></msup></mrow><annotation encoding="application/x-tex">S = QK^\top</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.0435em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">Q</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">⊤</span></span></span></span></span></span></span></span></span></span></span></span>, where <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">S_{ij}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">ij</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></span> is how much the token at position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> attends to the token at position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi></mrow><annotation encoding="application/x-tex">j</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span></span></span></span></span>. In an <em>unmasked</em> layer, <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi></mrow><annotation encoding="application/x-tex">j</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span></span></span></span></span> ranges over the whole sequence — past, present, and future. So when position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> builds its output representation, that representation can depend on token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">i+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span>.</p>
+
+    <p>Now recall the training target: the output at position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> is used to predict token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">i+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span>. Put those together and the catastrophe is obvious — the model is asked to predict token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">i+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span> from a representation that is <em>allowed to look at token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">i+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span></em>. It will learn the trivial shortcut: copy the next token through the attention path. Training loss plummets to near zero, and the model is worthless, because at generation time token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">i+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span> does not exist yet — it is the thing we are trying to produce. This is <strong>label leakage</strong>, and an autoregressive model trained with full attention learns nothing but to cheat.</p>
+    <p class="next">The fix must make the future unreachable — not softly discouraged, but exactly, arithmetically absent from every position's attention.</p>
+  </section>
+
+  <section>
+    <h2>The fix: set the future to −∞ before softmax</h2>
+    <p>Attention weights come from a softmax over scores. To remove position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi></mrow><annotation encoding="application/x-tex">j</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span></span></span></span></span> from position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span>'s attention, we exploit exactly how softmax turns scores into weights. Add a <strong>mask</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi></mrow><annotation encoding="application/x-tex">M</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">M</span></span></span></span></span> to the scores before the softmax, where the future entries are <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span></span> and everything else is 0:</p>
+
+    <div class="eqbox">
+    <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>M</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mrow><mo fence="true">{</mo><mtable rowspacing="0.36em" columnalign="left left" columnspacing="1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mn>0</mn></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi><mspace width="1em"/><mo stretchy="false">(</mo><mtext>present or past</mtext><mo stretchy="false">)</mo></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>j</mi><mo>&gt;</mo><mi>i</mi><mspace width="1em"/><mo stretchy="false">(</mo><mtext>future</mtext><mo stretchy="false">)</mo></mrow></mstyle></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">M_{ij} = \begin{cases} 0 &amp; j \le i \quad(\text{present or past})\\[2pt] -\infty &amp; j &gt; i \quad(\text{future}) \end{cases}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em;">M</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">ij</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:3.08em;vertical-align:-1.29em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.79em;"><span style="top:-3.79em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">0</span></span></span><span style="top:-2.15em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">−</span><span class="mord">∞</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.29em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.79em;"><span style="top:-3.79em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0572em;">j</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:1em;"></span><span class="mopen">(</span><span class="mord text"><span class="mord">present or past</span></span><span class="mclose">)</span></span></span><span style="top:-2.15em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0572em;">j</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:1em;"></span><span class="mopen">(</span><span class="mord text"><span class="mord">future</span></span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.29em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span>
+    </div>
+
+    <p>and compute masked attention as</p>
+
+    <div class="eqbox">
+    <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mrow><mi mathvariant="normal">A</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">n</mi></mrow><mo stretchy="false">(</mo><mi>Q</mi><mo separator="true">,</mo><mi>K</mi><mo separator="true">,</mo><mi>V</mi><mo stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">x</mi></mrow><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mi mathvariant="normal">⊤</mi></msup><mo>+</mo><mi>M</mi></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo fence="true">)</mo></mrow><mi>V</mi><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\mathrm{Attention}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^\top + M}{\sqrt{d_k}}\right)V.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathrm">Attention</span></span><span class="mopen">(</span><span class="mord mathnormal">Q</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.4761em;vertical-align:-0.95em;"></span><span class="mord"><span class="mord mathrm">softmax</span></span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.5261em;"><span style="top:-2.2528em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8572em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-2.8172em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1828em;"><span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">⊤</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">M</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.93em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">)</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span><span class="mord">.</span></span></span></span></span>
+    </div>
+
+    <p>The magic is in the exponential. Softmax exponentiates each score, and</p>
+
+    <div class="eqbox">
+    <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>exp</mi><mo>⁡</mo><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mfrac><mrow><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>+</mo><mo stretchy="false">(</mo><mo>−</mo><mi mathvariant="normal">∞</mi><mo stretchy="false">)</mo></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo fence="true">)</mo></mrow><mo>=</mo><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><mo>−</mo><mi mathvariant="normal">∞</mi><mo stretchy="false">)</mo><mo>=</mo><mn>0</mn><mo separator="true">,</mo></mrow><annotation encoding="application/x-tex">\exp\!\left(\frac{S_{ij} + (-\infty)}{\sqrt{d_k}}\right) = \exp(-\infty) = 0,</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:2.4em;vertical-align:-0.95em;"></span><span class="mop">exp</span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.2528em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8572em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-2.8172em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1828em;"><span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">ij</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mopen">(</span><span class="mord">−</span><span class="mord">∞</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.93em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">)</span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">exp</span><span class="mopen">(</span><span class="mord">−</span><span class="mord">∞</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">0</span><span class="mpunct">,</span></span></span></span></span>
+    </div>
+
+    <p>so every future position contributes <em>exactly</em> zero weight — not small, zero. The softmax denominator then sums over the surviving (past and present) entries only, so each row still <strong>renormalizes to 1</strong> over the tokens it <em>is</em> allowed to see. The mask is the same for every input, purely a function of position, so in practice it is a fixed lower-triangular matrix of 0s (kept) and <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span></span>s (in real code, a large negative number like the dtype's minimum, which softmaxes to a value indistinguishable from zero).</p>
+
+    <div class="note">
+      <span class="t">Why before the softmax, not after</span>
+      You might try zeroing the future weights <em>after</em> the softmax instead. That fails: the softmax would have already spent probability mass on the future, and zeroing afterward leaves the surviving weights summing to less than 1 — an un-normalized, leaky distribution. Masking with <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span></span> <em>before</em> the softmax makes the normalization itself ignore the future, so the kept weights are a proper distribution over the legal positions.
+    </div>
+
+    <p>The result is a strictly lower-triangular attention pattern: position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> attends to positions <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">0, 1, \dots, i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner">…</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span></span></span></span></span> and nothing beyond. Toggle it on and off below on a real 6-token sentence, and watch each row's weights renormalize over its past.</p>
+
+    <!-- ============ WIDGET A: masked attention grid ============ -->
+    <div class="widget" id="maskw">
+      <h4>Toggle the causal mask</h4>
+      <p class="sub">Rows = the querying token; columns = the token being attended to. Cell brightness is the attention weight (softmax of fixed illustrative scores). Flip the mask and watch the future (upper triangle) go to exactly zero while each row re-normalizes over its past.</p>
+      <div class="wbtns">
+        <button class="btn on" id="maskBtn" type="button" aria-pressed="true">Causal mask: ON</button>
+        <span class="dim" style="font-family:var(--f-mono);font-size:.78rem">rows always sum to 1</span>
+      </div>
+      <div class="gridwrap"><div class="agrid" id="agrid"></div></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--past)"></span> attention weight (past + present)</span>
+        <span><span class="sw" style="background:repeating-linear-gradient(45deg,rgba(255,107,107,.5),rgba(255,107,107,.5) 3px,transparent 3px,transparent 6px);border:1px dashed rgba(255,107,107,.6)"></span> masked future (weight = 0)</span>
+        <span><span class="sw" style="background:transparent;outline:2px solid var(--now)"></span> the token itself (diagonal)</span>
+      </div>
+      <div class="gcap" id="gcap"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The payoff: one pass trains every position</h2>
+    <p>With the future masked, something wonderful becomes possible. Because position <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> now depends only on tokens <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≤</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">\le i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7719em;vertical-align:-0.136em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span>, a <em>single</em> forward pass over the whole sequence computes, simultaneously and independently, the correct next-token prediction for every position — each one honestly conditioned on just its past. You do not loop over positions; you run the sequence once and read off <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span></span> predictions.</p>
+
+    <p>Training a decoder-only LM is then just: take a sequence, shift it by one to make inputs and targets, run one masked pass, and average the <a href="/blog/language-modeling-next-token/">cross-entropy</a> over all positions.</p>
+
+    <div class="eqbox">
+    <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>inputs</mtext><mo>=</mo><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>x</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo><mo separator="true">,</mo><mspace width="1em"/><mtext>targets</mtext><mo>=</mo><mo stretchy="false">(</mo><msub><mi>x</mi><mn>2</mn></msub><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>x</mi><mi>T</mi></msub><mo stretchy="false">)</mo><mo separator="true">,</mo><mspace width="1em"/><mi mathvariant="script">L</mi><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mi>log</mi><mo>⁡</mo><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>∣</mo><msub><mi>x</mi><mrow><mo>≤</mo><mi>t</mi></mrow></msub><mo stretchy="false">)</mo><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\text{inputs} = (x_1, \dots, x_{T-1}), \quad \text{targets} = (x_2, \dots, x_T), \quad \mathcal{L} = -\frac{1}{T-1}\sum_{t=1}^{T-1} \log p_\theta(x_{t+1} \mid x_{\le t}).</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8623em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">inputs</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner">…</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.1389em;">T</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2083em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord text"><span class="mord">targets</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner">…</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.1389em;">T</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathcal">L</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:3.0954em;vertical-align:-1.2671em;"></span><span class="mord">−</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">1</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8283em;"><span style="top:-1.8829em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.1389em;">T</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2671em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2083em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∣</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2952em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mrel mtight">≤</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2452em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mord">.</span></span></span></span></span>
+    </div>
+
+    <p>Feeding the model the <strong>true</strong> previous tokens as context at every step — rather than its own predictions — is called <strong>teacher forcing</strong> (Williams &amp; Zipser, 1989). It is what lets all positions be computed at once: since every position's input is the ground-truth prefix, none of them has to wait for another's output. Teacher forcing plus the causal mask is why a transformer trains on a whole sequence in one parallel, GPU-friendly shot — the efficiency the <a href="/blog/pre-transformer-to-attention/">recurrent models before it</a> could never reach.</p>
+  </section>
+
+  <section>
+    <h2>Training vs inference: the same mask, two worlds</h2>
+    <p>At <strong>training</strong> time the entire target sequence is known, so teacher forcing feeds the real tokens and the mask enforces the <em>rule</em> "don't peek right." At <strong>inference</strong> time the future genuinely does not exist yet: the model must generate token by token, appending each output to the input and running again. The very same causal mask now enforces a <em>fact</em> — there is nothing to the right to attend to. The constraint the mask simulated during training becomes reality during generation. Flip between the two modes below.</p>
+
+    <!-- ============ WIDGET B: training vs inference ============ -->
+    <div class="widget" id="tiw">
+      <h4>Training (parallel) vs inference (sequential)</h4>
+      <p class="sub">The same model, the same causal mask, two regimes. Training scores all positions at once on ground-truth tokens; inference unrolls one token at a time on its own outputs.</p>
+      <div class="wbtns">
+        <button class="btn on" id="modeTrain" type="button" aria-pressed="true">Training</button>
+        <button class="btn" id="modeInfer" type="button" aria-pressed="false">Inference</button>
+      </div>
+      <div id="tiBody"></div>
+      <div class="wbtns" id="tiControls"></div>
+      <div class="stepline" id="tiStep"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The seam: exposure bias</h2>
+    <p>That switch between worlds is not free. During training the model only ever sees <em>correct</em> prefixes (teacher forcing). During generation it sees its <em>own</em> prefixes, which may contain mistakes. The moment it emits a token it never would have seen after a correct history, it is conditioning on a context unlike anything in training — and errors can compound down the sequence. Bengio et al. (2015) named this train–test mismatch <strong>exposure bias</strong>: the model is exposed to different data distributions during training and inference.</p>
+
+    <div class="note warn">
+      <span class="t">The honest cost of teacher forcing</span>
+      Teacher forcing buys the parallel-training efficiency that made transformers practical, but it trains the model only on the distribution of <em>true</em> prefixes, never on the distribution of its own generations. Fixes exist — scheduled sampling (mixing in the model's own tokens during training), and at the sequence level, RL-style objectives — but plain autoregressive LMs live with some exposure bias, which is one reason a low teacher-forced <a href="/blog/language-modeling-next-token/">perplexity</a> does not guarantee good free-running generation.
+    </div>
+    <p class="next">The mask is also the exact dividing line between the two great transformer families — and it is a one-character change.</p>
+  </section>
+
+  <section>
+    <h2>Encoder vs decoder: the mask is the whole difference</h2>
+    <p>Remove the mask and every position sees the entire sequence, in both directions. That is a <strong>bidirectional encoder</strong> (BERT and friends): superb at <em>understanding</em> a fixed input — classification, tagging, retrieval — because each token is informed by full left <em>and</em> right context. But it cannot generate autoregressively, because it has no notion of "the past so far."</p>
+    <p>Add the mask and you have a <strong>causal decoder</strong> (GPT and essentially every generative LLM): each token sees only its past, so the model defines a proper left-to-right probability over sequences and can generate one token at a time. Same attention math, same weights shapes — the presence or absence of that one lower-triangular mask is what separates a model that reads from a model that writes.</p>
+  </section>
+
+  <section>
+    <h2>What it costs and what it doesn't</h2>
+    <ul>
+      <li><strong>It does not save the <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>.</strong> The mask zeroes the upper triangle of the score matrix but you still, in a naive implementation, compute all <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>n</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">n^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></span> scores. (Good kernels like FlashAttention skip fully-masked blocks, recovering roughly the factor of two, but the asymptotics stand.)</li>
+      <li><strong>It enables the KV cache.</strong> Because token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> only ever attends to tokens <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≤</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">\le i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7719em;vertical-align:-0.136em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span>, the keys and values of earlier tokens never change as generation proceeds — so you compute them once and cache them, making each generation step attend to stored keys/values instead of recomputing them. Causality is precisely what makes that caching valid.</li>
+      <li><strong>It forfeits right context for generation.</strong> A decoder can never use future tokens, by design; tasks that benefit from bidirectional context (some infilling, editing) need encoder-style attention or special masking schemes.</li>
+      <li><strong>Teacher forcing ≠ free-running.</strong> As above, the training regime and the generation regime differ, and the gap (exposure bias) is real if usually tolerable.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where this goes next</h2>
+    <p>The causal mask is the hinge between the two things a transformer does. Two threads lead straight out. The first is the <strong>KV cache</strong> and the broader machinery of efficient autoregressive <em>inference</em> — the optimization the mask makes possible, and the reason serving a token costs what it costs. The second is <strong>decoding</strong> itself: this post produced one probability distribution per step, but turning a stream of distributions into text means sampling from them (greedy, temperature, top-<span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span></span>, nucleus), where the exposure-bias seam becomes something you actively manage.</p>
+    <p>Everything upstream now connects: <a href="/blog/tokenization-from-scratch/">tokens</a> become <a href="/blog/token-embeddings-from-scratch/">embeddings</a>, attention with a causal mask mixes them left-to-right, and the <a href="/blog/language-modeling-next-token/">next-token objective</a> scores the result — trained in one masked, teacher-forced pass and unrolled, one token at a time, to write.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani et al. (2017) — Attention Is All You Need</a><br><span class="dim" style="font-size:.86rem">Section 3.2.3 defines the decoder's masking: it sets illegal (future) connections to −∞ inside the softmax input. The source of the mask above.</span></li>
+        <li><span class="rt">explainer</span> <a href="https://jalammar.github.io/illustrated-gpt2/" target="_blank" rel="noopener">Jay Alammar — The Illustrated GPT-2</a><br><span class="dim" style="font-size:.86rem">Visual walkthrough of masked self-attention and autoregressive, token-by-token generation in a decoder-only model.</span></li>
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/1506.03099" target="_blank" rel="noopener">Bengio, Vinyals, Jaitly &amp; Shazeer (2015) — Scheduled Sampling</a><br><span class="dim" style="font-size:.86rem">Names and analyzes exposure bias — the teacher-forcing train/inference mismatch — and proposes mixing in the model's own tokens.</span></li>
+        <li><span class="rt">companion</span> <a href="/blog/scaled-dot-product-attention/">Scaled Dot-Product Attention</a> · <a href="/blog/language-modeling-next-token/">Language Modeling &amp; Perplexity</a><br><span class="dim" style="font-size:.86rem">The attention operation the mask modifies, and the next-token objective the masked pass optimizes.</span></li>
+      </ul>
+
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">The two interactives compute real softmax over <b>illustrative</b> fixed scores on the toy sentence "The cat sat on the mat"; the token-by-token predictions shown in inference mode are scripted for illustration, not produced by a trained model. The mechanism is exact: <b>masked entries receive exactly zero weight</b> because <span style="white-space:nowrap">exp(−∞) = 0</span>, and each row renormalizes over its legal positions. The −∞ mask, the teacher-forcing definition (Williams &amp; Zipser, 1989), and exposure bias (Bengio et al., 2015) are as described in the cited sources; in real code −∞ is a large negative constant. Architecture claims (encoder = unmasked/bidirectional, decoder = causal) are standard.</p>
+    </div>
+  </div>
+
+</main>
+<!--KATEX-END-->
+
+<script>
+(function(){
+  "use strict";
+  function softmaxMasked(scores, allowUpTo){
+    // allowUpTo: highest index allowed (inclusive); -1 or null => all allowed
+    var lim = (allowUpTo==null)? scores.length-1 : allowUpTo;
+    var m=-Infinity;
+    for(var j=0;j<scores.length;j++){ if(j<=lim && scores[j]>m) m=scores[j]; }
+    var e=scores.map(function(s,j){ return j<=lim ? Math.exp(s-m) : 0; });
+    var sum=e.reduce(function(a,b){return a+b;},0);
+    return e.map(function(v){ return sum>0? v/sum : 0; });
+  }
+
+  // ============ Widget A: masked attention grid ============
+  var TOKENS=["The","cat","sat","on","the","mat"];
+  var N=TOKENS.length;
+  // fixed illustrative raw scores S[i][j]  (query i attends key j)
+  var S=[
+    [1.5,2.0,0.3,0.2,0.8,1.0],
+    [1.2,1.8,1.5,0.3,0.4,1.3],
+    [0.4,2.0,1.6,0.5,0.3,0.7],
+    [0.2,0.6,1.0,1.5,0.9,0.4],
+    [0.5,0.3,0.2,0.8,1.7,1.4],
+    [0.6,1.6,0.5,0.4,1.2,2.0]
+  ];
+  var maskOn=true;
+  var elGrid=document.getElementById("agrid"), elMaskBtn=document.getElementById("maskBtn"),
+      elGcap=document.getElementById("gcap");
+
+  function lerpColor(t){ // t in [0,1] -> dark to emerald
+    t=Math.max(0,Math.min(1,t));
+    var r=Math.round(16+(73-16)*t), g=Math.round(23+(214-23)*t), b=Math.round(35+(160-35)*t);
+    return "rgb("+r+","+g+","+b+")";
+  }
+  function renderGrid(){
+    if(!elGrid) return;
+    elGrid.style.gridTemplateColumns="minmax(38px,auto) repeat("+N+",1fr) minmax(44px,auto)";
+    elGrid.innerHTML="";
+    // header row
+    var corner=document.createElement("div"); corner.className="acell hdr"; corner.textContent=""; elGrid.appendChild(corner);
+    TOKENS.forEach(function(t){ var h=document.createElement("div"); h.className="acell hdr"; h.textContent=t; h.style.textAlign="center"; elGrid.appendChild(h); });
+    var sh=document.createElement("div"); sh.className="acell hdr"; sh.textContent="Σ"; elGrid.appendChild(sh);
+    // body
+    for(var i=0;i<N;i++){
+      var lab=document.createElement("div"); lab.className="acell rowlab"; lab.textContent=TOKENS[i]; elGrid.appendChild(lab);
+      var w=softmaxMasked(S[i], maskOn? i : null);
+      for(var j=0;j<N;j++){
+        var c=document.createElement("div"); c.className="acell";
+        if(maskOn && j>i){ c.className+=" masked"; c.textContent=""; }
+        else {
+          c.style.background=lerpColor(w[j]);
+          c.textContent=Math.round(w[j]*100);
+          if(w[j]<0.28) c.style.color="#cfe8dd";
+          if(j===i) c.className+=" diag";
+        }
+        elGrid.appendChild(c);
+      }
+      var rs=document.createElement("div"); rs.className="rowsum";
+      var tot=w.reduce(function(a,b){return a+b;},0);
+      rs.textContent=tot.toFixed(2); elGrid.appendChild(rs);
+    }
+    // caption
+    if(maskOn){
+      elGcap.className="gcap";
+      elGcap.innerHTML="<b>Masked.</b> Every row is lower-triangular: token <b>i</b> attends only to positions <b>0…i</b>. Row 1 (\"The\") can attend to nothing but itself, so it puts 100% on \"The\". Each row still sums to 1 over its legal past.";
+    } else {
+      // find where row 0 attends most
+      var w0=softmaxMasked(S[0], null); var top=0; for(var k=1;k<N;k++){ if(w0[k]>w0[top]) top=k; }
+      elGcap.className="gcap leak";
+      elGcap.innerHTML="<b>Unmasked — the leak.</b> \"The\" (row 1) attends most to \"<b>"+TOKENS[top]+"</b>\" ("+Math.round(w0[top]*100)+"%), a <b>future</b> token it is supposed to predict. Training here just learns to copy the answer.";
+    }
+    postHeight();
+  }
+
+  // ============ Widget B: training vs inference ============
+  var FULL=["The","cat","sat","on","the","mat"];
+  var mode="train";
+  var genStep=1; // number of generated tokens revealed in inference
+  var elMT=document.getElementById("modeTrain"), elMI=document.getElementById("modeInfer"),
+      elBody=document.getElementById("tiBody"), elCtl=document.getElementById("tiControls"),
+      elStep=document.getElementById("tiStep");
+
+  function renderTI(){
+    if(!elBody) return;
+    elBody.innerHTML=""; elCtl.innerHTML="";
+    if(mode==="train"){
+      // shift-by-one pair grid, all positions at once
+      var wrap=document.createElement("div"); wrap.className="scroll";
+      var grid=document.createElement("div"); grid.className="pairgrid";
+      grid.style.gridTemplateColumns="auto repeat("+(FULL.length)+",1fr)";
+      function addRow(label, arr, cls){
+        var l=document.createElement("div"); l.className="pg-lab"; l.textContent=label; grid.appendChild(l);
+        arr.forEach(function(t){ var c=document.createElement("div"); c.className="pg-cell "+cls; c.textContent=t; grid.appendChild(c); });
+      }
+      addRow("input (given)", ["<s>","The","cat","sat","on","the"], "inp");
+      addRow("target (predict)", ["The","cat","sat","on","the","mat"], "tgt");
+      wrap.appendChild(grid); elBody.appendChild(wrap);
+      elStep.innerHTML="<b>One forward pass.</b> All 6 predictions are scored at once. Every input is the true previous token (teacher forcing), and the causal mask stops each position from seeing its own target. Fully parallel.";
+    } else {
+      // sequential generation
+      var seq=document.createElement("div"); seq.className="seq";
+      FULL.forEach(function(t,i){
+        var el=document.createElement("span"); el.className="tok";
+        if(i<genStep){ el.className+=" past"; el.textContent=t; }
+        else if(i===genStep){ el.className+=" now"; el.textContent=t; }
+        else { el.className+=" future"; el.textContent="?"; }
+        seq.appendChild(el);
+      });
+      elBody.appendChild(seq);
+      var gen=document.createElement("button"); gen.className="btn"; gen.type="button";
+      gen.textContent= genStep<FULL.length-1 ? "▶ Generate next token" : "↺ Reset";
+      gen.addEventListener("click", function(){
+        if(genStep<FULL.length-1) genStep++; else genStep=1;
+        renderTI();
+      });
+      elCtl.appendChild(gen);
+      var ctx=FULL.slice(0,genStep).join(" ");
+      if(genStep<FULL.length){
+        elStep.innerHTML="Context so far: <b>"+ctx+"</b> → model attends to these "+genStep+" token"+(genStep===1?"":"s")+" (its own past output) and predicts \"<b>"+FULL[genStep]+"</b>\". Then it appends and repeats — one pass per token.";
+      } else {
+        elStep.innerHTML="Sequence complete: <b>"+FULL.join(" ")+"</b>. Unlike training, each step conditioned on the model's <i>own</i> prior tokens — the source of exposure bias.";
+      }
+    }
+    postHeight();
+  }
+  function setMode(m){
+    mode=m;
+    elMT.classList.toggle("on", m==="train"); elMT.setAttribute("aria-pressed", String(m==="train"));
+    elMI.classList.toggle("on", m==="infer"); elMI.setAttribute("aria-pressed", String(m==="infer"));
+    if(m==="infer") genStep=1;
+    renderTI();
+  }
+
+  // resize contract: define postHeight before first render
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight);
+  window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+
+  if(elMaskBtn){
+    elMaskBtn.addEventListener("click", function(){
+      maskOn=!maskOn;
+      elMaskBtn.textContent="Causal mask: "+(maskOn?"ON":"OFF");
+      elMaskBtn.classList.toggle("on", maskOn);
+      elMaskBtn.setAttribute("aria-pressed", String(maskOn));
+      renderGrid();
+    });
+    renderGrid();
+  }
+  if(elMT){ elMT.addEventListener("click", function(){ setMode("train"); });
+            elMI.addEventListener("click", function(){ setMode("infer"); });
+            renderTI(); }
+})();
+</script>
+</body>
+</html>
