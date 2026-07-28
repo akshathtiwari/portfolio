@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Sliding Window Attention: Depth Buys Range, and a KV Cache That Never Grows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@600;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d; --panel:#141b25; --panel-2:#1a2230; --ink:#eef4fb; --dim:#a0afc2; --faint:#66788b;
+    --win:#f5c451; --depth:#6c8cff; --cache:#5ed39b; --danger:#ff7a7a;
+    --line:#243244; --line-soft:#1b2532;
+    --f-display:'Darker Grotesque', system-ui, sans-serif; --f-body:'Inter', system-ui, sans-serif; --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px; --maxw:760px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px} section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.06;letter-spacing:0}
+  h2{font-size:2rem;font-weight:800;margin:2.4rem 0 .5rem} h3{font-size:1.42rem;font-weight:700;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0} a{color:var(--win);text-decoration:none;border-bottom:1px solid rgba(245,196,81,.4)} a:hover{border-bottom-color:var(--win)}
+  strong{color:#fff;font-weight:600} .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:radial-gradient(1100px 340px at 8% -8%, rgba(245,196,81,.10), transparent 60%),radial-gradient(900px 340px at 98% 0%, rgba(94,211,155,.08), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--win);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:900;font-size:3rem;line-height:.98;letter-spacing:0;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--win),var(--cache));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.15rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)} .chip b{color:var(--win);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--win);background:linear-gradient(180deg,rgba(245,196,81,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--win);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)} .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  .illus-tag,.measured-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--cache);background:rgba(94,211,155,.12);border:1px solid rgba(94,211,155,.3)}
+  .illus-tag{color:var(--win);background:rgba(245,196,81,.12);border:1px solid rgba(245,196,81,.3)}
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.3rem;font-weight:700}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .ctrls label{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--dim);margin:8px 0 3px} .ctrls .val{color:var(--win)}
+  .ctrls input[type=range]{width:100%;max-width:340px;accent-color:var(--win);height:20px}
+  .seqrow{display:flex;gap:2px;flex-wrap:wrap;margin:10px 0}
+  .sq{width:15px;height:22px;border-radius:3px;background:var(--panel-2);border:1px solid transparent}
+  .sq.reach{background:rgba(108,140,255,.4)} .sq.win{background:var(--win)} .sq.query{background:#fff;outline:2px solid #fff}
+  .rfmsg{font-family:var(--f-mono);font-size:.82rem;color:var(--dim);margin-top:8px} .rfmsg b{color:var(--depth)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--f-mono);font-size:.7rem;color:var(--dim);margin-top:6px}
+  .legend span{display:inline-flex;align-items:center;gap:6px} .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  /* rolling cache */
+  .buffer{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0}
+  .slot{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:.7rem;color:var(--cache)}
+  .slot .si{font-size:.54rem;color:var(--faint)}
+  .slot.just{outline:2px solid var(--cache)}
+  .stat4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}
+  .stat{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+  .stat .k{font-family:var(--f-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .stat .v{font-family:var(--f-mono);font-size:1.06rem;color:var(--ink);line-height:1.1} .stat.fixed .v{color:var(--cache)} .stat.grow .v{color:var(--danger)}
+  button.btn{font-family:var(--f-mono);font-size:.76rem;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;margin-top:12px}
+  button.btn:hover{border-color:var(--win)} button.btn:focus-visible{outline:2px solid var(--win);outline-offset:2px}
+  ul{padding-left:1.2em}li{margin:.4rem 0} hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem} .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0} .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--win);margin-right:8px}
+  @media (max-width:520px){h1{font-size:2.3rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Phase 1 · Attention &nbsp;/&nbsp; efficient · Sliding Window</p>
+    <h1>A small window, <span class="g">a deep stack, an endless cache</span></h1>
+    <p class="standfirst">Let each token attend only to the last few thousand — a fixed window. It looks like a hard limit on context, but stacking layers turns a width-W window into an L×W receptive field: information hops one window per layer, like a CNN. And because a token never looks past W, the KV cache is a fixed-size rolling buffer that never grows, no matter how long you generate.</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~15 min</span>
+      <span class="chip"><b>math</b> &nbsp;receptive field</span>
+      <span class="chip"><b>interactive</b> &nbsp;depth · rolling cache</span>
+      <span class="chip"><b>series</b> &nbsp;Attention · 15</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <p><a href="/blog/longformer-bigbird/">Longformer and BigBird</a> paired a local window with global tokens to reach far. Mistral 7B (Jiang et al., 2023) made a leaner bet for a decoder language model: drop the global tokens entirely, keep <em>only</em> the sliding window, and let network <strong>depth</strong> do the long-range reaching. It works, and it comes with an inference bonus that is arguably the bigger deal — a KV cache that stops growing.</p>
+    <p><strong>Sliding Window Attention (SWA):</strong> each token attends to itself and the previous <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">W-1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span> tokens — a window of size <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span> (4096 in Mistral 7B) — and nothing older. Compute is <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo>⋅</mo><mi>W</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n \cdot W)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mclose">)</span></span></span></span></span>, linear in sequence length. So far this is just Longformer's local half. The insight is what depth does to it.</p>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">A width-<span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span> window looks like a hard <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span>-token memory limit, but it isn't: after <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi></mrow><annotation encoding="application/x-tex">L</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span></span></span></span></span> stacked layers a token's <strong>receptive field is <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>⋅</mo><mi>W</mi></mrow><annotation encoding="application/x-tex">L \cdot W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span></strong>, because each layer lets information hop one window forward — exactly a CNN's growing receptive field. And since no token ever attends past <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span>, the KV cache is a <strong>fixed-size rolling buffer of length <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span></strong> — constant memory at any context length.</p>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>Depth buys range</h2>
+    <p>Here is the mechanism. In layer 1, token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> reads tokens <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">[</mo><mi>i</mi><mo>−</mo><mi>W</mi><mo>+</mo><mn>1</mn><mo separator="true">,</mo><mtext> </mtext><mi>i</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">[i-W+1,\, i]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mclose">]</span></span></span></span></span> directly. But the representation of token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>−</mo><mi>W</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">i-W+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span> that it reads has, <em>in that same layer's input</em>, already absorbed <em>its</em> window <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">[</mo><mi>i</mi><mo>−</mo><mn>2</mn><mi>W</mi><mo>+</mo><mn>2</mn><mo separator="true">,</mo><mtext> </mtext><mi>i</mi><mo>−</mo><mi>W</mi><mo>+</mo><mn>1</mn><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">[i-2W+2,\, i-W+1]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord">2</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">]</span></span></span></span></span> from the previous layer. So by layer 2, token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> is indirectly influenced by tokens up to <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>W</mi></mrow><annotation encoding="application/x-tex">2W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span> back; by layer <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span></span>, up to <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>⋅</mo><mi>W</mi></mrow><annotation encoding="application/x-tex">k \cdot W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span>:</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>receptive field after </mtext><mi>L</mi><mtext> layers</mtext><mo>=</mo><mi>L</mi><mo>×</mo><mi>W</mi><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\text{receptive field after } L \text{ layers} = L \times W.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">receptive field after </span></span><span class="mord mathnormal">L</span><span class="mord text"><span class="mord"> layers</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mord">.</span></span></span></span></span></div>
+    <p>For Mistral 7B — <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">L = 32</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">32</span></span></span></span></span> layers, <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><mn>4096</mn></mrow><annotation encoding="application/x-tex">W = 4096</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">4096</span></span></span></span></span> — that is a theoretical span of roughly <strong>131,000 tokens</strong>, from a window that only ever looks back 4,096 directly. Information relays forward through depth like a bucket brigade. Increase the layers and watch the reachable span grow:</p>
+
+    <!-- WIDGET A: receptive field -->
+    <div class="widget" id="rfw">
+      <h4>Receptive field vs depth</h4>
+      <p class="sub">48 tokens; the query is the last one. Window W = 4 (toy). Its direct window is gold; tokens reachable only through stacked layers are blue. Reach = L × W.</p>
+      <div class="seqrow" id="seqrow"></div>
+      <div class="ctrls"><label>layers L = <span class="val" id="lVal">1</span> &nbsp; (window W = 4)<input type="range" id="lSl" min="1" max="12" step="1" value="1"></label></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#fff"></span> query</span>
+        <span><span class="sw" style="background:var(--win)"></span> direct window (W)</span>
+        <span><span class="sw" style="background:rgba(108,140,255,.5)"></span> reached via depth</span>
+        <span><span class="sw" style="background:var(--panel-2)"></span> out of reach</span>
+      </div>
+      <div class="rfmsg" id="rfMsg"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The rolling KV cache</h2>
+    <p>Now the inference payoff, which may matter more than the compute. In full attention, generating token <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span></span> means storing and re-reading the keys/values of all <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">n-1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span> previous tokens — a KV cache that grows without bound (the memory-bound bottleneck from the <a href="/blog/mqa-gqa/">MQA/GQA post</a>). With sliding-window attention, a token only ever attends to the last <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span> keys, so <strong>you never need to store more than <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span> of them</strong>. The cache becomes a fixed-size <strong>rolling buffer</strong>: the key/value for timestep <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> is written to slot <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mtext> </mtext><mo lspace="0.22em" rspace="0.22em"><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi></mrow></mo><mtext> </mtext><mi>W</mi></mrow><annotation encoding="application/x-tex">i \bmod W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.0556em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin"><span class="mord"><span class="mord mathrm">mod</span></span></span><span class="mspace" style="margin-right:0.0556em;"></span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span>, overwriting the entry from <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>−</mo><mi>W</mi></mrow><annotation encoding="application/x-tex">i - W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7429em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span>, which is now out of every future token's window anyway.</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>cache slot for token </mtext><mi>i</mi><mo>=</mo><mi>i</mi><mtext> </mtext><mo lspace="0.22em" rspace="0.22em"><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi></mrow></mo><mtext> </mtext><mi>W</mi><mo separator="true">,</mo><mspace width="2em"/><mtext>cache size</mtext><mo>=</mo><mi>W</mi><mtext> (constant, for any </mtext><mi>n</mi><mo stretchy="false">)</mo><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\text{cache slot for token } i = i \bmod W, \qquad \text{cache size} = W \ \text{(constant, for any } n).</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord text"><span class="mord">cache slot for token </span></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.0556em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin"><span class="mord"><span class="mord mathrm">mod</span></span></span><span class="mspace" style="margin-right:0.0556em;"></span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord text"><span class="mord">cache size</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace"> </span><span class="mord text"><span class="mord">(constant, for any </span></span><span class="mord mathnormal">n</span><span class="mclose">)</span><span class="mord">.</span></span></span></span></span></div>
+    <p>Generate a 200,000-token document with a 4,096-slot cache. The decode memory is flat forever. Step tokens through the buffer and watch it stay fixed while a full cache would balloon:</p>
+
+    <!-- WIDGET B: rolling cache -->
+    <div class="widget" id="rcw">
+      <h4>Rolling buffer cache (W = 6)</h4>
+      <p class="sub">Each new token's K/V is written to slot (i mod 6), overwriting the oldest. The buffer never exceeds 6 — while a full cache grows with every token.</p>
+      <div class="buffer" id="buffer"></div>
+      <div class="stat4">
+        <div class="stat"><span class="k">token position i</span><span class="v" id="stPos">0</span></div>
+        <div class="stat fixed"><span class="k">rolling cache</span><span class="v" id="stFixed">0 / 6</span></div>
+        <div class="stat grow"><span class="k">full cache would be</span><span class="v" id="stGrow">0</span></div>
+      </div>
+      <button class="btn" id="genBtn" type="button">▶ Generate next token</button>
+      <button class="btn" id="rcReset" type="button">Reset</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it costs</h2>
+    <ul>
+      <li><strong>Beyond L×W is truly gone.</strong> The receptive field is a hard ceiling — information older than <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>⋅</mo><mi>W</mi></mrow><annotation encoding="application/x-tex">L \cdot W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span> tokens cannot reach the current position at all. Unlike full attention, there is no path to arbitrarily distant context.</li>
+      <li><strong>Reaching far is indirect and lossy.</strong> Long-range influence arrives through many window hops, each of which mixes and compresses; precise recall of a specific token thousands of positions back is weak compared to full attention's direct link. Later Mistral models mix in full-attention layers partly for this reason.</li>
+      <li><strong>It's a local approximation.</strong> Good enough for the mostly-local dependencies of language, but not for tasks that need exact, sharp long-range retrieval — where you want full attention (made cheap by <a href="/blog/flashattention/">FlashAttention</a>) or a hybrid.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where this sits in the lineage</h2>
+    <p>Sliding-window attention is the <a href="/blog/longformer-bigbird/">local window</a> of Longformer/BigBird, promoted to the whole mechanism for a decoder LM and paired with its killer inference feature, the rolling cache. In practice it rides alongside <a href="/blog/mqa-gqa/">grouped-query attention</a> (Mistral 7B uses both) — SWA caps the cache <em>length</em> at <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span></span></span></span></span>, GQA shrinks its <em>per-token</em> size — and modern models increasingly <strong>hybridize</strong>: some sliding-window layers for cheap local mixing, some full-attention (or linear-attention) layers for global recall. That hybrid instinct — cheap local plus a little expensive global — is exactly the shape of frontier long-context designs, right up to Kimi K3.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/2310.06825" target="_blank" rel="noopener">Jiang et al. (2023) — Mistral 7B</a><br><span class="dim" style="font-size:.86rem">Sliding Window Attention (W = 4096), the L×W receptive-field argument, and the rolling-buffer KV cache. Primary source.</span></li>
+        <li><span class="rt">companion</span> <a href="/blog/longformer-bigbird/">Longformer &amp; BigBird</a> · <a href="/blog/mqa-gqa/">MQA &amp; GQA</a> · <a href="/blog/flashattention/">FlashAttention</a><br><span class="dim" style="font-size:.86rem">The windowed attention this generalizes, the KV-cache view it caps, and the exact attention it complements.</span></li>
+      </ul>
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">Both widgets use toy sizes (W = 4 and W = 6) for legibility; the mechanics are exact — the receptive field is exactly L × W, and the rolling cache writes token i to slot i mod W and never exceeds W. The real Mistral 7B figures (W = 4096, 32 layers, ≈131K theoretical span, O(W·n) compute, rolling-buffer cache, ~2× speedup at 16K with the FlashAttention/xFormers kernels, and its use of GQA) are from Jiang et al. (2023). The "reaching far is lossy" and hybrid-layer points are qualitative characterizations consistent with later Mistral models.</p>
+    </div>
+  </div>
+</main>
+<!--KATEX-END-->
+<script>
+(function(){
+  "use strict";
+  // WIDGET A: receptive field
+  var NT=48, W=4, QUERY=47;
+  var elSeq=document.getElementById("seqrow"), elL=document.getElementById("lSl"), elLv=document.getElementById("lVal"), elRf=document.getElementById("rfMsg");
+  function renderRF(){
+    if(!elSeq) return;
+    var L=parseInt(elL.value,10); elLv.textContent=L;
+    var reach=L*W;
+    var winStart=QUERY-(W-1), reachStart=QUERY-reach+1;
+    elSeq.innerHTML="";
+    for(var i=0;i<NT;i++){
+      var s=document.createElement("div"); s.className="sq";
+      if(i===QUERY) s.className+=" query";
+      else if(i>=winStart && i<=QUERY) s.className+=" win";
+      else if(i>=reachStart && i<winStart) s.className+=" reach";
+      elSeq.appendChild(s);
+    }
+    var reachable=Math.min(QUERY+1, reach);
+    elRf.innerHTML="After <b>"+L+"</b> layer"+(L>1?"s":"")+", the query reaches back <b>L×W = "+reach+"</b> tokens ("+reachable+" available here). Real Mistral: 32 × 4096 ≈ <b>131,000</b>.";
+    postHeight();
+  }
+  // WIDGET B: rolling cache
+  var WB=6, pos, buf;
+  function resetRC(){ pos=0; buf=[]; renderRC(); }
+  function gen(){
+    var slot=pos % WB;
+    buf[slot]={tok:pos, slot:slot};
+    pos++; renderRC(slot);
+  }
+  var elBuf=document.getElementById("buffer");
+  function renderRC(justSlot){
+    if(!elBuf) return;
+    elBuf.innerHTML="";
+    for(var s=0;s<WB;s++){
+      var d=document.createElement("div"); d.className="slot"+(s===justSlot?" just":"");
+      var e=buf[s];
+      if(e){ d.innerHTML="t"+e.tok+"<span class='si'>slot "+s+"</span>"; }
+      else { d.innerHTML="<span class='si'>slot "+s+"</span>"; }
+      elBuf.appendChild(d);
+    }
+    document.getElementById("stPos").textContent=pos;
+    var filled=Math.min(pos,WB);
+    document.getElementById("stFixed").textContent=filled+" / "+WB;
+    document.getElementById("stGrow").textContent=pos+(pos>WB?" (growing!)":"");
+    document.getElementById("genBtn").textContent = pos>=24? "↺ Reset & replay" : "▶ Generate next token";
+    if(pos>=24){ resetRC(); }
+    postHeight();
+  }
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight); window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+  if(elL){ elL.addEventListener("input", renderRF); renderRF(); }
+  var gb=document.getElementById("genBtn");
+  if(gb){ gb.addEventListener("click", function(){ if(pos>=24) resetRC(); else gen(); }); document.getElementById("rcReset").addEventListener("click", resetRC); resetRC(); }
+})();
+</script>
+</body>
+</html>
