@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Multi-Query & Grouped-Query Attention: Shrinking the KV Cache</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gantari:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d; --panel:#141b25; --panel-2:#1a2230; --ink:#eef4fb; --dim:#a0afc2; --faint:#66788b;
+    --cache:#46b6c8; --query:#8f9dff; --kv:#f2b45c; --danger:#ff7a7a;
+    --line:#243244; --line-soft:#1b2532;
+    --f-display:'Gantari', system-ui, sans-serif; --f-body:'Inter', system-ui, sans-serif; --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px; --maxw:760px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px} section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.14;letter-spacing:-.01em}
+  h2{font-size:1.66rem;font-weight:700;margin:2.4rem 0 .5rem} h3{font-size:1.2rem;font-weight:600;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0} a{color:var(--cache);text-decoration:none;border-bottom:1px solid rgba(70,182,200,.4)} a:hover{border-bottom-color:var(--cache)}
+  strong{color:#fff;font-weight:600} .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:radial-gradient(1100px 340px at 8% -8%, rgba(70,182,200,.11), transparent 60%),radial-gradient(900px 340px at 98% 0%, rgba(242,180,92,.08), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--cache);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:800;font-size:2.4rem;line-height:1.06;letter-spacing:-.02em;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--query),var(--cache));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.15rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)} .chip b{color:var(--cache);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--cache);background:linear-gradient(180deg,rgba(70,182,200,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--cache);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)} .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  .illus-tag,.measured-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--cache);background:rgba(70,182,200,.12);border:1px solid rgba(70,182,200,.3)}
+  .illus-tag{color:var(--kv);background:rgba(242,180,92,.12);border:1px solid rgba(242,180,92,.3)}
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.05rem;font-weight:600}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .heads{margin:6px 0 4px} .headrow{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}
+  .hlabel{font-family:var(--f-mono);font-size:.66rem;color:var(--faint);width:52px;flex:0 0 52px;align-self:center}
+  .qh{flex:1;min-width:24px;height:30px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:.62rem;color:#0b1017;font-weight:700}
+  .kvh{height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:.62rem;color:#0b1017;font-weight:700}
+  .grp0{background:#8f9dff}.grp1{background:#f2b45c}.grp2{background:#5ed39b}.grp3{background:#ff8fab}.grp4{background:#46b6c8}.grp5{background:#c99bf0}.grp6{background:#ffd27a}.grp7{background:#7ad1ff}
+  .ctrls label{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--dim);margin:10px 0 3px} .ctrls .val{color:var(--cache)}
+  .ctrls input[type=range]{width:100%;max-width:340px;accent-color:var(--cache);height:20px}
+  .modelbl{font-family:var(--f-mono);font-size:.78rem;margin-top:8px} .modelbl b{color:var(--query)}
+  .stat4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px}
+  .stat{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+  .stat .k{font-family:var(--f-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .stat .v{font-family:var(--f-mono);font-size:1.08rem;color:var(--ink);line-height:1.1} .stat.cache .v{color:var(--kv)} .stat.save .v{color:var(--cache)}
+  .cbars{margin-top:6px}
+  .cbar{display:grid;grid-template-columns:56px 1fr 96px;gap:9px;align-items:center;margin:6px 0;font-family:var(--f-mono);font-size:.78rem}
+  .cbar .cl{color:var(--dim)} .ct{background:var(--panel-2);border-radius:5px;height:15px;overflow:hidden} .cf{height:100%;border-radius:5px}
+  .cf.mha{background:linear-gradient(90deg,var(--danger),#ffb0a0)} .cf.gqa{background:linear-gradient(90deg,var(--kv),#ffd9a6)} .cf.mqa{background:linear-gradient(90deg,var(--cache),#a6e4ee)} .cbar .cv{text-align:right;color:var(--ink)}
+  ul{padding-left:1.2em}li{margin:.4rem 0} hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem} .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0} .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cache);margin-right:8px}
+  @media (max-width:520px){h1{font-size:1.85rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Phase 1 · Attention &nbsp;/&nbsp; efficient · MQA &amp; GQA</p>
+    <h1>Many questions, <span class="g">few filing cabinets</span></h1>
+    <p class="standfirst">Autoregressive decoding is bottlenecked not by attention's FLOPs but by streaming the KV cache from memory every single token — and the cache grows with the number of key/value heads. You need many distinct <em>query</em> heads, but not many distinct <em>KV</em> heads. Share them: Multi-Query Attention keeps one, Grouped-Query keeps a few, cutting the cache manyfold for a small quality cost.</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~15 min</span>
+      <span class="chip"><b>math</b> &nbsp;KV cache</span>
+      <span class="chip"><b>interactive</b> &nbsp;grouping · cache</span>
+      <span class="chip"><b>series</b> &nbsp;Attention · 12</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <p>The efficiency posts so far attacked the <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span> compute. This one attacks a different bottleneck — the one that actually governs generation speed. As the <a href="/blog/attention-quadratic-complexity/">quadratic-wall post</a> showed, decoding is <strong>memory-bandwidth-bound</strong>: producing each new token means re-reading the entire <strong>KV cache</strong> (all past tokens' keys and values) from memory. The cache, not the arithmetic, is what you wait on.</p>
+    <p>So the size of that cache is the lever. In standard <a href="/blog/multi-head-attention/">multi-head attention</a>, every one of the <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> heads stores its own keys and values for every past token, so the cache is</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>KV cache</mtext><mo>=</mo><mn>2</mn><mtext> </mtext><mo stretchy="false">(</mo><mtext>K and V</mtext><mo stretchy="false">)</mo><mo>×</mo><mi>n</mi><mo>×</mo><msub><mi>d</mi><mtext>model</mtext></msub><mo>×</mo><mi>L</mi><mtext> (bytes)</mtext><mo separator="true">,</mo><mspace width="1em"/><msub><mi>d</mi><mtext>model</mtext></msub><mo>=</mo><mi>h</mi><mo>⋅</mo><msub><mi>d</mi><mtext>head</mtext></msub><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\text{KV cache} = 2 \, (\text{K and V}) \times n \times d_{\text{model}} \times L \ \text{(bytes)}, \quad d_{\text{model}} = h \cdot d_{\text{head}}.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord text"><span class="mord">KV cache</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mopen">(</span><span class="mord text"><span class="mord">K and V</span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">model</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">L</span><span class="mspace"> </span><span class="mord text"><span class="mord">(bytes)</span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">model</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">head</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">.</span></span></span></span></span></div>
+    <p>It scales with the number of <em>KV heads</em>. Queries, by contrast, are recomputed fresh each step and never cached. That asymmetry is the whole opening.</p>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">A model needs many distinct <span style="color:var(--query);font-weight:600">query</span> heads to ask varied questions, but it can get away with far fewer distinct <span style="color:var(--kv);font-weight:600">key/value</span> heads. <strong>Multi-Query Attention</strong> shares a single K/V head across all query heads (cache <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>×</mo></mrow><annotation encoding="application/x-tex">h\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">h</span><span class="mord">×</span></span></span></span></span> smaller); <strong>Grouped-Query Attention</strong> shares one K/V head per group of query heads (cache <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mi mathvariant="normal">/</mi><mi>G</mi><mo>×</mo></mrow><annotation encoding="application/x-tex">h/G\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">h</span><span class="mord">/</span><span class="mord mathnormal">G</span><span class="mord">×</span></span></span></span></span> smaller), tuning the quality-vs-cache trade with the number of groups <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi></mrow><annotation encoding="application/x-tex">G</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">G</span></span></span></span></span>.</p>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>From MHA to MQA to GQA</h2>
+    <p><strong>Multi-Head (MHA):</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> query heads, <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> key heads, <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> value heads — everything distinct. Maximum quality, maximum cache.</p>
+    <p><strong>Multi-Query (MQA, Shazeer 2019):</strong> keep <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> query heads but collapse to <strong>one</strong> shared key head and <strong>one</strong> shared value head. Every query head attends against the same K and V. The KV cache shrinks by a factor of <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> — for a 32-head model, 32× less memory to stream each decode step, which translates almost directly into faster generation. The cost is some quality loss and, sometimes, training instability.</p>
+    <p><strong>Grouped-Query (GQA, Ainslie et al. 2023):</strong> the dial between them. Partition the <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span></span> query heads into <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi></mrow><annotation encoding="application/x-tex">G</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">G</span></span></span></span></span> groups, and give each group its own shared K/V head:</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>G</mi><mo>=</mo><mi>h</mi><mo>⇒</mo><mtext>MHA</mtext><mo separator="true">,</mo><mspace width="2em"/><mi>G</mi><mo>=</mo><mn>1</mn><mo>⇒</mo><mtext>MQA</mtext><mo separator="true">,</mo><mspace width="2em"/><mtext>KV cache reduction</mtext><mo>=</mo><mfrac><mi>h</mi><mi>G</mi></mfrac><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">G = h \Rightarrow \text{MHA}, \qquad G = 1 \Rightarrow \text{MQA}, \qquad \text{KV cache reduction} = \frac{h}{G}.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">G</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">⇒</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">MHA</span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">G</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">⇒</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">MQA</span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord text"><span class="mord">KV cache reduction</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">G</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">h</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord">.</span></span></span></span></span></div>
+    <p>A middle <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi></mrow><annotation encoding="application/x-tex">G</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">G</span></span></span></span></span> (often 8) keeps most of MHA's quality at close to MQA's cache. Drag <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi></mrow><annotation encoding="application/x-tex">G</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">G</span></span></span></span></span> and watch the query heads regroup and the cache change:</p>
+
+    <!-- WIDGET A: grouping + cache -->
+    <div class="widget" id="grpw">
+      <h4>Query heads → shared KV heads</h4>
+      <p class="sub">8 query heads (top) mapped to G shared K/V heads (bottom), colored by group. Cache for n = 8,192, d_head = 128, L = 32, bf16.</p>
+      <div class="heads">
+        <div class="headrow"><span class="hlabel">query</span><div id="qheads" style="display:flex;gap:5px;flex:1"></div></div>
+        <div class="headrow"><span class="hlabel">K/V</span><div id="kvheads" style="display:flex;gap:5px;flex:1"></div></div>
+      </div>
+      <div class="modelbl" id="modeName"></div>
+      <div class="ctrls"><label>groups G = <span class="val" id="gVal">8</span> (of h = 8 query heads)<input type="range" id="gSl" min="0" max="3" step="1" value="3"></label></div>
+      <div class="stat4">
+        <div class="stat cache"><span class="k">KV cache</span><span class="v" id="stCache"></span></div>
+        <div class="stat save"><span class="k">vs MHA</span><span class="v" id="stSave"></span></div>
+        <div class="stat"><span class="k">KV heads</span><span class="v" id="stKvh"></span></div>
+      </div>
+    </div>
+    <p class="dim" style="font-size:.84rem">Real models scale this up: Llama 2 70B uses 64 query heads with 8 groups (8× cache cut); Mistral and Falcon adopt GQA too. The visual uses 8 heads for legibility.</p>
+  </section>
+
+  <section>
+    <h2>Why sharing KV is (mostly) free — and uptraining</h2>
+    <p>Intuitively, the KV heads encode <em>what information each past token makes available</em>; the query heads encode <em>what each position wants to look up</em>. It turns out you need diversity mostly on the asking side: a handful of shared KV projections expose enough, while distinct query heads preserve the model's ability to attend in many different ways. GQA recovers most of the quality MQA gives up, at nearly the same cache.</p>
+    <div class="note">
+      <span class="t">Uptraining: you don't retrain from scratch</span>
+      A key practical result: you can <strong>convert an existing multi-head checkpoint to GQA</strong> by <em>mean-pooling</em> its K/V heads into the target number of groups, then fine-tuning for a small fraction — around 5% — of the original pre-training compute. Most of the lost quality comes back. That cheap conversion is a big reason GQA spread so fast: labs could retrofit models they already had rather than pretrain anew.
+    </div>
+    <p>Compare the cache growth of the three schemes as context lengthens:</p>
+
+    <!-- WIDGET B: cache vs n -->
+    <div class="widget" id="cnw">
+      <h4>KV cache vs context length</h4>
+      <p class="sub">h = 32 heads, d_head = 128, L = 32, bf16. MHA (32 KV heads) vs GQA-8 vs MQA (1 KV head).</p>
+      <div class="ctrls"><label>context n = <span class="val" id="nVal">8,192</span><input type="range" id="nSl" min="10" max="20" step="1" value="13"></label></div>
+      <div class="cbars">
+        <div class="cbar"><span class="cl">MHA</span><span class="ct"><span class="cf mha" id="barMha"></span></span><span class="cv" id="valMha"></span></div>
+        <div class="cbar"><span class="cl">GQA-8</span><span class="ct"><span class="cf gqa" id="barGqa"></span></span><span class="cv" id="valGqa"></span></div>
+        <div class="cbar"><span class="cl">MQA</span><span class="ct"><span class="cf mqa" id="barMqa"></span></span><span class="cv" id="valMqa"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it costs</h2>
+    <ul>
+      <li><strong>Quality vs cache is a real trade.</strong> MQA can measurably degrade quality (and destabilize training); GQA exists precisely because pure MQA was too lossy. There is no free lunch, only a well-placed dial.</li>
+      <li><strong>It doesn't touch prefill or the <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>.</strong> MQA/GQA shrink the decode-time KV cache; the prompt-processing compute and the quadratic attention over long contexts are untouched — different bottleneck, different fix.</li>
+      <li><strong>The cache still grows with context.</strong> GQA cuts the <em>constant factor</em>, not the linear-in-<span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span></span> growth; a 200K-token cache is smaller with GQA but still large. Pushing further means <em>compressing</em> the KV, not just sharing it — the next step.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where this sits in the lineage</h2>
+    <p>MQA and GQA are the <strong>KV-cache-reduction</strong> branch of efficient attention — they leave the attention math exact and shrink the <em>decode state</em>. The line continues by compressing rather than merely sharing: <strong>Multi-head Latent Attention</strong> (DeepSeek, a later post) projects the keys and values into a small shared <em>latent</em> that is cached instead of the full K/V, squeezing the cache further while clawing back quality. And the most radical branch — <a href="/blog/performer/">linear attention</a> and state-space models — replaces the growing cache with a <em>fixed-size</em> recurrent state entirely. GQA is the pragmatic default that nearly every open model now ships with; MLA and SSMs are where the frontier pushes next.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener">Shazeer (2019) — Fast Transformer Decoding: One Write-Head is All You Need</a><br><span class="dim" style="font-size:.86rem">Multi-Query Attention: one shared K/V head across all query heads, for fast autoregressive decoding.</span></li>
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener">Ainslie et al. (2023) — GQA: Training Generalized Multi-Query Transformer Models</a><br><span class="dim" style="font-size:.86rem">Grouped-Query Attention, the h/G interpolation, and the mean-pool uptraining recipe (~5% of pretraining compute).</span></li>
+        <li><span class="rt">companion</span> <a href="/blog/multi-head-attention/">Multi-Head Attention</a> · <a href="/blog/attention-quadratic-complexity/">The Quadratic Wall</a><br><span class="dim" style="font-size:.86rem">The heads MQA/GQA share, and the prefill-vs-decode (KV-cache) bottleneck this addresses.</span></li>
+      </ul>
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">The <b>cache calculations are exact</b> for the stated config (KV cache = 2·n·(G·d_head)·L·2 bytes in bf16; reduction = h/G) — the grouping widget uses h = 8 for legibility, the cache-vs-n widget uses h = 32. These are scaling illustrations, not benchmarked latencies. The mechanism (MQA = 1 shared K/V head; GQA = G groups; h/G cache reduction; mean-pool uptraining at ~5% compute) is from Shazeer (2019) and Ainslie et al. (2023); adoption in Llama 2 70B (64 heads, 8 groups), Mistral, and Falcon is as widely reported. The "quality mostly preserved" claim is qualitative — exact task numbers are in the GQA paper.</p>
+    </div>
+  </div>
+</main>
+<!--KATEX-END-->
+<script>
+(function(){
+  "use strict";
+  var H=8, DHEAD=128, L=32, BYTES=2;
+  var GVALUES=[1,2,4,8];
+  function fmtB(x){ if(x>=1e9)return (x/1e9).toFixed(2)+" GB"; if(x>=1e6)return (x/1e6).toFixed(1)+" MB"; return (x/1e3).toFixed(0)+" KB"; }
+  // WIDGET A
+  var elQ=document.getElementById("qheads"), elKV=document.getElementById("kvheads"),
+      elG=document.getElementById("gSl"), elGv=document.getElementById("gVal"), elMode=document.getElementById("modeName");
+  function renderGrp(){
+    if(!elQ) return;
+    var G=GVALUES[parseInt(elG.value,10)];
+    elGv.textContent=G;
+    var per=H/G;
+    elQ.innerHTML=""; elKV.innerHTML="";
+    for(var i=0;i<H;i++){ var g=Math.floor(i/per); var d=document.createElement("div"); d.className="qh grp"+(g%8); d.textContent="Q"+i; d.style.flex="1"; elQ.appendChild(d); }
+    for(var j=0;j<G;j++){ var k=document.createElement("div"); k.className="kvh grp"+(j%8); k.textContent="KV"+j; k.style.flex=String(per); elKV.appendChild(k); }
+    var name = G===H? "Multi-Head Attention (MHA)" : (G===1? "Multi-Query Attention (MQA)" : "Grouped-Query Attention (GQA-"+G+")");
+    elMode.innerHTML="mode: <b>"+name+"</b>";
+    var n=8192;
+    var cache=2*n*(G*DHEAD)*L*BYTES;
+    document.getElementById("stCache").textContent=fmtB(cache);
+    document.getElementById("stSave").textContent=(H/G)+"× smaller";
+    document.getElementById("stKvh").textContent=G+" of "+H;
+    postHeight();
+  }
+  // WIDGET B
+  var elN=document.getElementById("nSl"), elNv=document.getElementById("nVal");
+  var H2=32;
+  function renderCn(){
+    if(!elN) return;
+    var n=Math.pow(2,parseInt(elN.value,10)); elNv.textContent=n.toLocaleString();
+    function cache(kvh){ return 2*n*(kvh*DHEAD)*L*BYTES; }
+    var mha=cache(32), gqa=cache(8), mqa=cache(1), mx=mha;
+    document.getElementById("barMha").style.width="100%";
+    document.getElementById("barGqa").style.width=(gqa/mx*100).toFixed(1)+"%";
+    document.getElementById("barMqa").style.width=Math.max(1.5,mqa/mx*100).toFixed(1)+"%";
+    document.getElementById("valMha").textContent=fmtB(mha);
+    document.getElementById("valGqa").textContent=fmtB(gqa);
+    document.getElementById("valMqa").textContent=fmtB(mqa);
+    postHeight();
+  }
+  function Hh(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:Hh()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight); window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+  if(elG){ elG.addEventListener("input", renderGrp); renderGrp(); }
+  if(elN){ elN.addEventListener("input", renderCn); renderCn(); }
+})();
+</script>
+</body>
+</html>
