@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Mamba & State-Space Models: Trading Perfect Recall for a Fixed-Size State</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d; --panel:#141b25; --panel-2:#1a2230; --ink:#eef4fb; --dim:#a0afc2; --faint:#66788b;
+    --ssm:#57c98a; --attn:#ff8f6b; --select:#8f9dff; --danger:#ff7a7a;
+    --line:#243244; --line-soft:#1b2532;
+    --f-display:'Manrope', system-ui, sans-serif; --f-body:'Inter', system-ui, sans-serif; --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px; --maxw:760px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px} section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.14;letter-spacing:-.01em}
+  h2{font-size:1.66rem;font-weight:700;margin:2.4rem 0 .5rem} h3{font-size:1.2rem;font-weight:600;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0} a{color:var(--ssm);text-decoration:none;border-bottom:1px solid rgba(87,201,138,.4)} a:hover{border-bottom-color:var(--ssm)}
+  strong{color:#fff;font-weight:600} .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:radial-gradient(1100px 340px at 8% -8%, rgba(87,201,138,.11), transparent 60%),radial-gradient(900px 340px at 98% 0%, rgba(143,157,255,.08), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ssm);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:800;font-size:2.4rem;line-height:1.06;letter-spacing:-.02em;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--ssm),var(--select));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.15rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)} .chip b{color:var(--ssm);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--ssm);background:linear-gradient(180deg,rgba(87,201,138,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ssm);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)} .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  .illus-tag,.measured-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--ssm);background:rgba(87,201,138,.12);border:1px solid rgba(87,201,138,.3)}
+  .illus-tag{color:var(--select);background:rgba(143,157,255,.12);border:1px solid rgba(143,157,255,.3)}
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.05rem;font-weight:600}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .ctrls label{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--dim);margin:8px 0 3px} .ctrls .val{color:var(--ssm)}
+  .ctrls input[type=range]{width:100%;max-width:340px;accent-color:var(--ssm);height:20px}
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+  @media (max-width:560px){.vs{grid-template-columns:1fr}}
+  .vcard{border:1px solid var(--line-soft);border-radius:12px;padding:14px;background:var(--panel-2)}
+  .vcard.attn{border-color:rgba(255,143,107,.3)} .vcard.ssm{border-color:rgba(87,201,138,.3)}
+  .vcard h5{margin:0 0 8px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
+  .vcard.attn h5{color:var(--attn)} .vcard.ssm h5{color:var(--ssm)}
+  .vstat{font-family:var(--f-mono);font-size:.8rem;color:var(--dim);padding:4px 0;display:flex;justify-content:space-between}
+  .vstat b{color:var(--ink)} .vcard.attn .big{color:var(--attn)} .vcard.ssm .big{color:var(--ssm)}
+  .big{font-family:var(--f-mono);font-size:1.15rem;font-weight:600}
+  /* selective stepper */
+  .toks{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}
+  .tk{font-family:var(--f-mono);font-size:.74rem;padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2);color:var(--faint);min-width:34px;text-align:center}
+  .tk.signal{border-color:var(--select);color:var(--select);background:rgba(143,157,255,.12);font-weight:700}
+  .tk.cur{outline:2px solid var(--ssm);outline-offset:1px}
+  .tk.past{color:var(--dim)}
+  .traj{display:flex;align-items:flex-end;gap:3px;height:80px;margin:6px 0}
+  .tb{flex:1;border-radius:3px 3px 0 0;min-height:2px;background:var(--panel-2)}
+  .tb.fx{background:linear-gradient(180deg,var(--attn),rgba(255,143,107,.3))} .tb.sel{background:linear-gradient(180deg,var(--ssm),rgba(87,201,138,.3))}
+  .tb.mark{outline:1px solid var(--select)}
+  .stateline{font-family:var(--f-mono);font-size:.8rem;color:var(--dim);margin:4px 0} .stateline b{color:var(--ink)}
+  button.btn{font-family:var(--f-mono);font-size:.76rem;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;margin-top:12px}
+  button.btn:hover{border-color:var(--ssm)} button.btn:focus-visible{outline:2px solid var(--ssm);outline-offset:2px}
+  .recall{margin-top:12px;font-family:var(--f-mono);font-size:.82rem;padding:9px 12px;border-radius:9px;background:rgba(87,201,138,.08);border:1px solid rgba(87,201,138,.25);color:var(--dim)} .recall b{color:var(--ssm)} .recall .lost{color:var(--attn)}
+  ul{padding-left:1.2em}li{margin:.4rem 0} hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem} .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0} .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ssm);margin-right:8px}
+  @media (max-width:520px){h1{font-size:1.85rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Phase 1 · Attention &nbsp;/&nbsp; efficient · Mamba &amp; SSMs</p>
+    <h1>Stop storing every token. <span class="g">Keep a smart summary.</span></h1>
+    <p class="standfirst">Attention keeps a perfect transcript of the past — the KV cache — and re-reads all of it every step, which is why it costs O(n²). State-space models do the opposite: compress all history into a fixed-size state, O(1) memory, O(n) compute. The catch is forgetting. Mamba's fix is to make the state <em>selective</em> — the model learns, per token, what to keep — recovering content-based memory at linear cost.</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~18 min</span>
+      <span class="chip"><b>math</b> &nbsp;linear recurrence</span>
+      <span class="chip"><b>interactive</b> &nbsp;tradeoff · selection</span>
+      <span class="chip"><b>series</b> &nbsp;Attention · 14</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <p>Every method so far still <em>computed attention</em> — sparser, lower-rank, kernelized, or IO-optimized, but attention. The most radical escape abandons it and returns to the <a href="/blog/pre-transformer-to-attention/">recurrence</a> attention replaced — but a recurrence redesigned to be linear (so it trains in parallel) and, in Mamba, <em>selective</em> (so it can actually compete on language). This is the branch that might replace attention rather than accelerate it.</p>
+    <p>Frame the two as opposite answers to "how do you remember the past?"</p>
+    <div class="vs">
+      <div class="vcard attn"><h5>Attention</h5>
+        <div class="vstat"><span>state (KV cache)</span><b>O(n) — every token</b></div>
+        <div class="vstat"><span>recall</span><b>perfect</b></div>
+        <div class="vstat"><span>compute</span><b>O(n²)</b></div>
+      </div>
+      <div class="vcard ssm"><h5>State-space model</h5>
+        <div class="vstat"><span>state</span><b>O(1) — fixed size</b></div>
+        <div class="vstat"><span>recall</span><b>lossy (must forget)</b></div>
+        <div class="vstat"><span>compute</span><b>O(n)</b></div>
+      </div>
+    </div>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">A state-space model summarizes all history into a <strong>fixed-size state</strong> updated by a linear recurrence — O(1) memory per step, O(n) total, no growing cache. Classic SSMs lost to attention on language because their <em>fixed</em> dynamics forgot indiscriminately. Mamba's insight: make the state update <strong>input-dependent (selective)</strong>, so the model decides what to remember or forget based on the token it's reading — content-based memory, at linear cost.</p>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>The state-space recurrence</h2>
+    <p>An SSM maps an input sequence to an output through a hidden state <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">h_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span>, with a linear update and a linear readout:</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>A</mi><mtext> </mtext><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>B</mi><mtext> </mtext><msub><mi>x</mi><mi>t</mi></msub><mo separator="true">,</mo><mspace width="2em"/><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><mi>C</mi><mtext> </mtext><msub><mi>h</mi><mi>t</mi></msub><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">h_t = A\,h_{t-1} + B\,x_t, \qquad y_t = C\,h_t.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.9028em;vertical-align:-0.2083em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2083em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">.</span></span></span></span></span></div>
+    <p>It is an RNN, but a <em>linear</em> one. The state <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">h_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span> is a fixed-size vector that carries a compressed summary of everything seen so far; to produce the next output you only need the current state and the new token — so <strong>inference is O(1) per step in memory</strong>, no cache that grows with context. That is the property that makes SSMs so attractive for very long sequences.</p>
+    <h3>Why it can also train in parallel</h3>
+    <p>A plain RNN is sequential — a training nightmare. But because this recurrence is <em>linear</em> and (in classic SSMs) time-invariant (<span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo separator="true">,</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">A, B, C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span></span> constant), unrolling it gives a <strong>convolution</strong>: the output is the input convolved with a fixed kernel derived from <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo separator="true">,</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">A, B, C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span></span>. Convolutions parallelize across the whole sequence like a transformer. So structured SSMs (S4 and successors) got the best of both worlds — <em>recurrent at inference</em> (O(1) state), <em>convolutional at training</em> (parallel, O(n)).</p>
+    <p class="next">But "time-invariant" hides the flaw that kept SSMs out of language modeling.</p>
+  </section>
+
+  <section>
+    <h2>The flaw, and Mamba's selection</h2>
+    <p>Fixed <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo separator="true">,</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">A, B, C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span></span> means the model applies the <strong>same dynamics to every token</strong>, regardless of content. It cannot say "this token is important — write it to memory" or "this is filler — ignore it" or "reset, a new topic starts." That content-blindness is fine for smooth signals (audio, time series) but fatal for language, which is all about <em>selectively</em> remembering the right earlier token — exactly the content-addressable memory that made attention win. Time-invariant SSMs underperformed transformers on text for this reason.</p>
+    <p><strong>Mamba</strong> (Gu &amp; Dao, 2023) fixes it with a <strong>selection mechanism</strong>: make the step size <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi></mrow><annotation encoding="application/x-tex">\Delta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord">Δ</span></span></span></span></span> and the matrices <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo separator="true">,</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">B, C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span></span> <em>functions of the input</em> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">x_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span>. Now the state update is content-dependent — the model gates information into and out of the state based on what it is currently reading, so it can selectively remember, ignore, or reset. This recovers the selective memory attention provided. Watch a fixed vs a selective state try to hold one important token through a stream of filler:</p>
+
+    <!-- WIDGET B: selective vs fixed state -->
+    <div class="widget" id="selw">
+      <h4>Fixed vs selective state: remembering one token</h4>
+      <p class="sub">A single-number state. One "signal" token (value 8, violet) must be remembered through filler (≈0). Step through and compare a fixed recurrence to a selective (Mamba-style) one.</p>
+      <div class="toks" id="tokRow"></div>
+      <div class="stateline">fixed state h &nbsp; <b id="fxState">0.00</b></div>
+      <div class="traj" id="fxTraj"></div>
+      <div class="stateline" style="color:var(--ssm)">selective state h &nbsp; <b id="selState" style="color:var(--ssm)">0.00</b></div>
+      <div class="traj" id="selTraj"></div>
+      <div class="recall" id="recallMsg"></div>
+      <button class="btn" id="stepBtn" type="button">▶ Next token</button>
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>The catch: selection breaks the convolution</h2>
+    <p>Input-dependent <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mo separator="true">,</mo><mi>B</mi><mo separator="true">,</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">\Delta, B, C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord">Δ</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span></span> mean the recurrence is no longer time-invariant — and the convolution trick, which required a <em>fixed</em> kernel, is gone. Mamba can't train as a convolution anymore. Instead it computes the (now input-varying) linear recurrence with a <strong>hardware-aware parallel scan</strong>: an associative-scan algorithm that still parallelizes across the sequence, fused into a GPU kernel that keeps the state in fast SRAM and recomputes intermediates in the backward pass — the same <a href="/blog/flashattention/">IO-aware</a> discipline as FlashAttention. So Mamba stays parallel and fast <em>despite</em> giving up the convolution.</p>
+    <div class="note">
+      <span class="t">The payoff</span>
+      Mamba scales <strong>linearly</strong> in sequence length, keeps a <strong>constant-size state</strong> at inference (roughly 5× higher generation throughput than a comparable transformer, since there is no growing KV cache to stream), and matches or beats transformers of the same size on language, audio, and genomics — while handling sequences up to a million tokens. It was the first SSM to genuinely rival attention on language.
+    </div>
+  </section>
+
+  <section>
+    <h2>What it costs</h2>
+    <ul>
+      <li><strong>A fixed state is still lossy.</strong> Even selective, an O(1) state cannot store arbitrary detail about every past token the way attention's cache can. On tasks demanding exact retrieval of a specific earlier token (associative recall, precise copying), attention still has an edge — the compression that buys efficiency also loses information.</li>
+      <li><strong>Hence hybrids.</strong> Many strong models <em>interleave</em> attention and SSM layers: a few attention layers for sharp recall, many Mamba layers for cheap long-range mixing. The two are complementary, not strictly competing — and this is exactly the design space frontier models now explore.</li>
+      <li><strong>The kernel is custom.</strong> The selective scan needs a bespoke hardware-aware implementation; it is not the drop-in that FlashAttention was for existing transformers.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where this sits in the lineage</h2>
+    <p>Mamba is the <strong>abandon-attention</strong> branch — and it is closer to the <a href="/blog/performer/">linear-attention</a> line than it first looks. A linear-attention model's running key–value summary <em>is</em> a fixed-size recurrent state; Mamba-2 (2024) made this precise, showing a duality between selective SSMs and a form of linear attention. So the two most radical efficiency lines — kernel/linear attention and selective state spaces — converge on the same object: a fixed-size state you update and read, instead of a cache you grow and re-scan. That convergence is exactly where the frontier lives: <a href="/blog/residual-connections-attention-residuals/">Kimi K3</a>'s efficient core is a linear-attention mechanism (Kimi Delta Attention) in this same family, typically hybridized with full-attention layers to keep the recall that a pure fixed state gives up. Compress the past, but learn what to keep.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/2312.00752" target="_blank" rel="noopener">Gu &amp; Dao (2023) — Mamba: Linear-Time Sequence Modeling with Selective State Spaces</a><br><span class="dim" style="font-size:.86rem">The selection mechanism (input-dependent Δ, B, C), the hardware-aware parallel scan, and the results vs transformers. Primary source.</span></li>
+        <li><span class="rt">background</span> <a href="https://arxiv.org/abs/2111.00396" target="_blank" rel="noopener">Gu, Goel &amp; Ré (2022) — S4: Efficiently Modeling Long Sequences with Structured State Spaces</a><br><span class="dim" style="font-size:.86rem">The structured-SSM foundation Mamba builds on — recurrent inference, convolutional training.</span></li>
+        <li><span class="rt">companion</span> <a href="/blog/performer/">Performer</a> · <a href="/blog/mqa-gqa/">MQA &amp; GQA</a> · <a href="/blog/pre-transformer-to-attention/">Before the Transformer</a><br><span class="dim" style="font-size:.86rem">Linear attention as a fixed-state recurrence, the KV cache SSMs avoid, and the RNNs this reinvents.</span></li>
+      </ul>
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">The <b>selective-state widget is a scalar caricature</b>: a real Mamba state is a vector with input-dependent Δ, B, C, but the demo captures the essential behaviour — a fixed recurrence (h ← 0.85·h + 0.15·x) blurs and decays the signal, while a selective one gates (write on signal, hold on filler) and retains it. The <b>tradeoff table</b> (attention O(n) state / O(n²) compute vs SSM O(1) state / O(n) compute) is exact in the asymptotic sense. The mechanism (input-dependent Δ, B, C; hardware-aware parallel scan; linear scaling; constant inference state; ~5× throughput; matching transformers) is from Gu &amp; Dao (2023); the SSM↔linear-attention duality is from Mamba-2 (2024). Exact benchmark numbers are in the papers.</p>
+    </div>
+  </div>
+</main>
+<!--KATEX-END-->
+<script>
+(function(){
+  "use strict";
+  // WIDGET A: tradeoff table (recompute on n slider) — handled via simple text, no slider here (static cards).
+  // WIDGET B: selective vs fixed state stepper
+  var TOK=[0.2,-0.1,0.3,8,0.1,-0.2,0.2,0.0,0.3,-0.1]; // signal value 8 at index 3
+  var SIGNAL=3;
+  var t, fxHist, selHist;
+  function reset(){ t=0; fxHist=[]; selHist=[]; render(); }
+  function step(){
+    if(t>=TOK.length){ reset(); return; }
+    var x=TOK[t];
+    // fixed: h = 0.85 h + 0.15 x
+    var fxPrev = fxHist.length? fxHist[fxHist.length-1]:0;
+    var fx = 0.85*fxPrev + 0.15*x;
+    // selective: gate on magnitude (input-dependent). big |x| -> write (reset+absorb); small -> hold
+    var selPrev = selHist.length? selHist[selHist.length-1]:0;
+    var isSignal = Math.abs(x) > 1.0;
+    var sel = isSignal ? x : selPrev; // write the signal, hold otherwise
+    fxHist.push(fx); selHist.push(sel);
+    t++; render();
+  }
+  var elTok=document.getElementById("tokRow"), elFxT=document.getElementById("fxTraj"), elSelT=document.getElementById("selTraj"),
+      elFxS=document.getElementById("fxState"), elSelS=document.getElementById("selState"), elRecall=document.getElementById("recallMsg"),
+      elStep=document.getElementById("stepBtn");
+  function bars(container,hist,cls){
+    container.innerHTML="";
+    for(var i=0;i<TOK.length;i++){
+      var b=document.createElement("div"); b.className="tb "+cls+(i===SIGNAL?" mark":"");
+      var v=i<hist.length?Math.abs(hist[i]):0;
+      b.style.height=(Math.min(1,v/8)*100).toFixed(0)+"%";
+      container.appendChild(b);
+    }
+  }
+  function render(){
+    if(!elTok) return;
+    elTok.innerHTML="";
+    for(var i=0;i<TOK.length;i++){
+      var d=document.createElement("div"); d.className="tk"+(i===SIGNAL?" signal":"")+(i===t?" cur":"")+(i<t?" past":"");
+      d.textContent = i===SIGNAL? "8" : TOK[i].toFixed(1);
+      elTok.appendChild(d);
+    }
+    bars(elFxT,fxHist,"fx"); bars(elSelT,selHist,"sel");
+    var fxNow=fxHist.length?fxHist[fxHist.length-1]:0, selNow=selHist.length?selHist[selHist.length-1]:0;
+    elFxS.textContent=fxNow.toFixed(2); elSelS.textContent=selNow.toFixed(2);
+    if(t>=TOK.length){
+      elRecall.innerHTML="Done. What does each state remember of the signal (8)? &nbsp; selective: <b>"+selNow.toFixed(2)+"</b> (retained) &nbsp;·&nbsp; fixed: <span class='lost'>"+fxNow.toFixed(2)+"</span> (washed out). Selection is why Mamba can do content-based memory.";
+    } else if(t===0){
+      elRecall.innerHTML="Press <b>Next token</b>. The signal (value 8) arrives at position "+SIGNAL+" — see which state still holds it at the end.";
+    } else {
+      elRecall.innerHTML="Step "+t+"/"+TOK.length+". "+(t>SIGNAL? "The signal has passed — watch the fixed state decay while the selective one holds." : "Approaching the signal token.");
+    }
+    elStep.textContent = t>=TOK.length? "↺ Reset & replay" : "▶ Next token";
+    postHeight();
+  }
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight); window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+  if(elStep){ elStep.addEventListener("click", step); document.getElementById("resetBtn").addEventListener("click", reset); reset(); }
+})();
+</script>
+</body>
+</html>
