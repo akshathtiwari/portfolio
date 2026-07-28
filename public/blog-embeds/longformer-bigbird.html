@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Longformer & BigBird: Local Windows, Global Tokens, and Random Edges</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d; --panel:#141b25; --panel-2:#1a2230; --ink:#eef4fb; --dim:#a0afc2; --faint:#66788b;
+    --blue:#5b9dff; --local:#5ed39b; --global:#f2c14e; --random:#ff8fab; --danger:#ff7a7a;
+    --line:#243244; --line-soft:#1b2532;
+    --f-display:'Onest', system-ui, sans-serif; --f-body:'Inter', system-ui, sans-serif; --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px; --maxw:760px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px} section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.14;letter-spacing:-.01em}
+  h2{font-size:1.66rem;font-weight:700;margin:2.4rem 0 .5rem} h3{font-size:1.2rem;font-weight:600;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0} a{color:var(--blue);text-decoration:none;border-bottom:1px solid rgba(91,157,255,.4)} a:hover{border-bottom-color:var(--blue)}
+  strong{color:#fff;font-weight:600} .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:radial-gradient(1100px 340px at 8% -8%, rgba(91,157,255,.11), transparent 60%),radial-gradient(900px 340px at 98% 0%, rgba(94,211,155,.08), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--blue);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:800;font-size:2.4rem;line-height:1.06;letter-spacing:-.02em;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--local),var(--global) 60%,var(--random));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.15rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)} .chip b{color:var(--blue);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--blue);background:linear-gradient(180deg,rgba(91,157,255,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)} .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  .illus-tag,.measured-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--blue);background:rgba(91,157,255,.12);border:1px solid rgba(91,157,255,.3)}
+  .illus-tag{color:var(--global);background:rgba(242,193,78,.12);border:1px solid rgba(242,193,78,.3)}
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.05rem;font-weight:600}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .pbflex{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .agrid{display:grid;gap:1px;background:var(--line-soft);border-radius:6px;overflow:hidden;width:240px;height:240px}
+  .acell{background:#0b1017}
+  .toggles{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .tg{font-family:var(--f-mono);font-size:.74rem;color:var(--dim);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;border-left-width:3px}
+  .tg[aria-pressed=true]{color:var(--ink)}
+  .tg.local{border-left-color:var(--local)} .tg.global{border-left-color:var(--global)} .tg.random{border-left-color:var(--random)}
+  .tg:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .pbinfo{flex:1;min-width:210px}
+  .ctrls label{display:block;font-family:var(--f-mono);font-size:.74rem;color:var(--dim);margin:6px 0 3px} .ctrls .val{color:var(--blue)}
+  .ctrls input[type=range]{width:100%;max-width:320px;accent-color:var(--blue);height:20px}
+  .cnt{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px;font-family:var(--f-mono);font-size:.82rem;color:var(--dim);margin-top:10px}
+  .cnt b{color:var(--ink)} .cnt .big{color:var(--local);font-size:1.05rem}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--f-mono);font-size:.72rem;color:var(--dim);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px} .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .cbars{margin-top:6px}
+  .cbar{display:grid;grid-template-columns:64px 1fr 100px;gap:9px;align-items:center;margin:6px 0;font-family:var(--f-mono);font-size:.78rem}
+  .cbar .cl{color:var(--dim)} .ct{background:var(--panel-2);border-radius:5px;height:15px;overflow:hidden} .cf{height:100%;border-radius:5px}
+  .cf.full{background:linear-gradient(90deg,var(--danger),#ffb0a0)} .cf.sp{background:linear-gradient(90deg,var(--blue),#a8c9ff)} .cbar .cv{text-align:right;color:var(--ink)}
+  .stat4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}
+  .stat{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+  .stat .k{font-family:var(--f-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .stat .v{font-family:var(--f-mono);font-size:1.06rem;color:var(--ink);line-height:1.1} .stat.save .v{color:var(--blue)}
+  ul{padding-left:1.2em}li{margin:.4rem 0} hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem} .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0} .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-right:8px}
+  @media (max-width:520px){h1{font-size:1.85rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Phase 1 · Attention &nbsp;/&nbsp; efficient · Longformer &amp; BigBird</p>
+    <h1>Windows are local. <span class="g">A few tokens go global.</span></h1>
+    <p class="standfirst">A pure sliding window is cheap but cuts the long-range links attention exists for. Longformer and BigBird fix that with a handful of <em>global</em> tokens that attend to — and are attended by — everything, restoring full-graph connectivity in two hops at O(n) cost. BigBird adds random edges and proves the result is as expressive as full attention.</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~16 min</span>
+      <span class="chip"><b>math</b> &nbsp;window+global · O(n)</span>
+      <span class="chip"><b>interactive</b> &nbsp;pattern builder</span>
+      <span class="chip"><b>series</b> &nbsp;Attention · 11</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <p>The <a href="/blog/sparse-transformer/">Sparse Transformer</a> used fixed strided patterns tuned for images. For <em>documents</em> — QA, summarization, long text — the natural structure is different: attention is mostly <strong>local</strong> (a word cares about its neighbours), plus a few tokens that everything depends on (the question, a classification token). Longformer (Beltagy et al., 2020) and BigBird (Zaheer et al., 2020) build exactly that attention graph, linear in <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span></span>, and pushed transformers from BERT's 512 tokens to <strong>4,096+</strong>.</p>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">Combine three cheap attention types into one sparse pattern: <span style="color:var(--local);font-weight:600">local</span> (each token attends a window of <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi></mrow><annotation encoding="application/x-tex">w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span></span></span></span></span> neighbours), <span style="color:var(--global);font-weight:600">global</span> (a few special tokens attend to <em>all</em> positions and are attended <em>by</em> all), and — for BigBird — <span style="color:var(--random);font-weight:600">random</span> (each token attends <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">r</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span></span></span></span> random others). The global tokens are relays: any token reaches any other in two hops through a global token. Total edges are <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">(</mo><mi>w</mi><mo>+</mo><mi>g</mi><mo>+</mo><mi>r</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n(w+g+r)) = O(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mclose">))</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span>, yet the graph stays fully connected.</p>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>Local: the sliding window</h2>
+    <p>Give each token a window: it attends only to the <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi></mrow><annotation encoding="application/x-tex">w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span></span></span></span></span> tokens nearest it (roughly <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mi mathvariant="normal">/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">w/2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="mord">/2</span></span></span></span></span> on each side). That is <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mi>w</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n w)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="mclose">)</span></span></span></span></span> — linear — and, exactly like a stack of convolutions, the <strong>receptive field grows with depth</strong>: after <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi></mrow><annotation encoding="application/x-tex">L</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span></span></span></span></span> layers a token indirectly sees about <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>⋅</mo><mi>w</mi></mrow><annotation encoding="application/x-tex">L \cdot w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span></span></span></span></span> tokens of context. Longformer also offers <em>dilated</em> windows (gaps between attended positions) to widen the field without adding compute. Local attention captures the bulk of what language needs — most dependencies really are nearby — for a tiny fraction of the cost.</p>
+    <p class="next">But "grows with depth" is too slow for a token that needs the <em>whole</em> document <em>now</em> — a question token that must see every passage. Depth-limited local reach is the gap.</p>
+  </section>
+
+  <section>
+    <h2>Global: a few tokens that see everything</h2>
+    <p>Designate a small set of <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi></mrow><annotation encoding="application/x-tex">g</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span></span></span></span></span> positions as <strong>global</strong>. A global token attends to <em>every</em> position, and <em>every</em> position attends to it — a full row <em>and</em> full column in the attention matrix. In Longformer these are chosen by the task: the <code>[CLS]</code> token for classification, or the question tokens for QA, so the answer-bearing passage tokens and the question can see each other directly regardless of distance.</p>
+    <p>Global tokens are <strong>relays</strong>. Even if tokens <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span> and <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi></mrow><annotation encoding="application/x-tex">j</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span></span></span></span></span> are far apart and outside each other's windows, both attend to (and are attended by) a shared global token, so information flows <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mtext>global</mtext><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i \to \text{global} \to j</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">global</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span></span></span></span></span> in two hops. Because <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi></mrow><annotation encoding="application/x-tex">g</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span></span></span></span></span> is a small constant, the added cost is <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>g</mi><mi>n</mi><mo stretchy="false">)</mo><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(g n) = O(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span><span class="mord mathnormal">n</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span>. Build the pattern yourself:</p>
+
+    <!-- WIDGET A: pattern builder -->
+    <div class="widget" id="pbw">
+      <h4>Build a sparse attention pattern</h4>
+      <p class="sub">A 24×24 attention matrix (row = query, col = key). Toggle the three components and tune their sizes; watch the edge count stay far below full n².</p>
+      <div class="toggles" id="toggles"></div>
+      <div class="pbflex">
+        <div>
+          <div class="agrid" id="agrid"></div>
+          <div class="legend">
+            <span><span class="sw" style="background:var(--local)"></span> local window</span>
+            <span><span class="sw" style="background:var(--global)"></span> global token</span>
+            <span><span class="sw" style="background:var(--random)"></span> random</span>
+          </div>
+        </div>
+        <div class="pbinfo">
+          <div class="ctrls">
+            <label>window w = <span class="val" id="wVal">4</span><input type="range" id="wSl" min="0" max="12" step="2" value="4"></label>
+            <label>global tokens g = <span class="val" id="gVal">2</span><input type="range" id="gSl" min="0" max="4" step="1" value="2"></label>
+            <label>random per token r = <span class="val" id="rVal">1</span><input type="range" id="rSl" min="0" max="4" step="1" value="1"></label>
+          </div>
+          <div class="cnt" id="pbCnt"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Random: BigBird's small-world edges</h2>
+    <p>BigBird adds the third ingredient: each token also attends to <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">r</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span></span></span></span> <strong>random</strong> positions. Borrowing from graph theory, a sparse graph of local + a few random edges is a <em>small-world</em> graph — short paths connect every pair with high probability, so random attention cheaply shrinks the number of hops needed for distant tokens to communicate. Window + global + random is BigBird's full recipe.</p>
+    <div class="note">
+      <span class="t">The theoretical payoff</span>
+      BigBird's authors did more than show it works — they <strong>proved</strong> that this sparse window+global+random attention is a <em>universal approximator</em> of sequence-to-sequence functions and is Turing complete, i.e. it retains the expressive power of full attention. That mattered: it turned "sparse attention seems fine empirically" into "sparse attention provably loses nothing in principle," at <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> cost.
+    </div>
+    <p>The wins were concrete: 8× longer inputs (to 4,096 tokens), state-of-the-art on long-document QA and summarization, and — because a genome is just a very long sequence — new results on DNA modeling.</p>
+
+    <!-- WIDGET B: cost -->
+    <div class="widget" id="costw">
+      <h4>Sparse vs full, as documents get long</h4>
+      <p class="sub">Edges for window+global+random, O(n(w+g+r)), against full n². Fixed w=512, g=8, r=3 (typical), drag n.</p>
+      <div class="ctrls"><label>sequence length n = <span class="val" id="nVal">4,096</span><input type="range" id="nSl" min="9" max="20" step="1" value="12"></label></div>
+      <div class="cbars">
+        <div class="cbar"><span class="cl">full n²</span><span class="ct"><span class="cf full" id="barFull"></span></span><span class="cv" id="valFull"></span></div>
+        <div class="cbar"><span class="cl">sparse</span><span class="ct"><span class="cf sp" id="barSp"></span></span><span class="cv" id="valSp"></span></div>
+      </div>
+      <div class="stat4"><div class="stat save"><span class="k">savings</span><span class="v" id="stSave"></span></div><div class="stat"><span class="k">edges per token</span><span class="v" id="stPer"></span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it costs</h2>
+    <ul>
+      <li><strong>Global tokens are chosen, not learned.</strong> You decide which positions are global (task-specific: <code>[CLS]</code>, question tokens). Pick wrong and a token that needed global reach won't have it.</li>
+      <li><strong>Two non-global, non-window tokens still can't attend directly</strong> in one layer — they route through a global token or a random edge, which is indirect and depth-dependent.</li>
+      <li><strong>Irregular patterns fight hardware.</strong> Random attention especially is awkward on GPUs; BigBird uses <em>block</em>-random and blocked windows to recover efficiency, and these implementations are fiddlier than dense attention.</li>
+      <li><strong>FlashAttention narrowed the need.</strong> For moderate lengths, cheap exact attention reduced the pressure to go sparse — but window+global remains a backbone of long-context and encoder models.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where this sits in the lineage</h2>
+    <p>Longformer and BigBird refine the <a href="/blog/sparse-transformer/">sparse family</a> with an explicit <strong>global-relay</strong> mechanism and (for BigBird) a theory of why it suffices. Their local half lives on directly in <strong>sliding-window attention</strong> (Mistral, a later post), and the global-token idea keeps resurfacing — as attention sinks, register tokens, and the "a few positions everyone can see" pattern that recurs across long-context designs. The other branches — <a href="/blog/linformer/">low-rank</a> and <a href="/blog/performer/">kernel</a> — reach linearity by approximating the whole matrix rather than sparsifying it.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/2004.05150" target="_blank" rel="noopener">Beltagy, Peters &amp; Cohan (2020) — Longformer: The Long-Document Transformer</a><br><span class="dim" style="font-size:.86rem">Sliding-window + dilated + task-specific global attention; scaling to 4,096 tokens for long-document tasks.</span></li>
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/2007.14062" target="_blank" rel="noopener">Zaheer et al. (2020) — Big Bird: Transformers for Longer Sequences</a><br><span class="dim" style="font-size:.86rem">Window + global + random sparse attention; the universal-approximator / Turing-complete proofs and long-sequence + genomics results.</span></li>
+        <li><span class="rt">context</span> <a href="https://arxiv.org/abs/2009.06732" target="_blank" rel="noopener">Tay et al. (2022) — Efficient Transformers: A Survey</a><br><span class="dim" style="font-size:.86rem">Places windowed+global attention among the sparse family.</span></li>
+        <li><span class="rt">companion</span> <a href="/blog/sparse-transformer/">The Sparse Transformer</a> · <a href="/blog/reformer/">Reformer</a><br><span class="dim" style="font-size:.86rem">Fixed and content-based sparsity that these refine with global relays.</span></li>
+      </ul>
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">The <b>pattern builder</b> computes real local/global/random masks on a 24×24 grid (global = the first g tokens; random edges are deterministically seeded), and the edge counts are exact for that toy size — a faithful illustration of the BigBird pattern figure, not a trained model. The <b>cost widget</b> uses representative w=512, g=8, r=3. The mechanism (local window, global tokens as full row+column relays, random edges), the O(n) complexity, the 4,096-token / 8×-BERT figure, and BigBird's universal-approximator / Turing-complete results are from Beltagy et al. (2020) and Zaheer et al. (2020).</p>
+    </div>
+  </div>
+</main>
+<!--KATEX-END-->
+<script>
+(function(){
+  "use strict";
+  var N=24;
+  var on={local:true, global:true, random:true};
+  // deterministic pseudo-random edges
+  function rnd(seed){ var x=Math.sin(seed*99.7)*43758.5453; return x-Math.floor(x); }
+  var elGrid=document.getElementById("agrid"), elToggles=document.getElementById("toggles"),
+      elW=document.getElementById("wSl"), elG=document.getElementById("gSl"), elR=document.getElementById("rSl"),
+      elWv=document.getElementById("wVal"), elGv=document.getElementById("gVal"), elRv=document.getElementById("rVal"),
+      elCnt=document.getElementById("pbCnt");
+
+  function cellType(i,j,w,g,r){
+    // returns 'global'|'local'|'random'|'' — priority global>local>random
+    if(on.global && (i<g || j<g)) return "global";
+    if(on.local && Math.abs(i-j)<=w/2) return "local";
+    if(on.random && r>0){ for(var t=0;t<r;t++){ var jj=Math.floor(rnd(i*31+t*7+1)*N); if(jj===j) return "random"; } }
+    return "";
+  }
+  function render(){
+    if(!elGrid) return;
+    if(!elToggles.childElementCount){
+      [["local","Local window"],["global","Global tokens"],["random","Random"]].forEach(function(m){
+        var b=document.createElement("button"); b.className="tg "+m[0]; b.type="button"; b.textContent=m[1];
+        b.setAttribute("aria-pressed", String(on[m[0]]));
+        b.addEventListener("click", function(){ on[m[0]]=!on[m[0]]; b.setAttribute("aria-pressed", String(on[m[0]])); render(); });
+        elToggles.appendChild(b);
+      });
+    }
+    var w=parseInt(elW.value,10), g=parseInt(elG.value,10), r=parseInt(elR.value,10);
+    elWv.textContent=w; elGv.textContent=g; elRv.textContent=r;
+    elGrid.style.gridTemplateColumns="repeat("+N+",1fr)"; elGrid.style.gridTemplateRows="repeat("+N+",1fr)";
+    elGrid.innerHTML="";
+    var edges=0;
+    var CMAP={local:"var(--local)",global:"var(--global)",random:"var(--random)"};
+    for(var i=0;i<N;i++)for(var j=0;j<N;j++){
+      var c=document.createElement("div"); c.className="acell";
+      var t=cellType(i,j,w,g,r);
+      if(t){ c.style.background=CMAP[t]; edges++; }
+      elGrid.appendChild(c);
+    }
+    var full=N*N;
+    elCnt.innerHTML="Edges: <span class='big'>"+edges+"</span> of "+full+" ("+(edges/full*100).toFixed(0)+"% of full).<br><br>"+
+      "Global tokens (rows+cols) keep every token reachable in <b>2 hops</b>. Turn them off and watch the far corners go dark — the window alone can't connect distant tokens.";
+    postHeight();
+  }
+
+  // WIDGET B
+  var elN=document.getElementById("nSl"), elNv=document.getElementById("nVal");
+  function fmt(x){ if(x>=1e9)return (x/1e9).toFixed(2)+"B"; if(x>=1e6)return (x/1e6).toFixed(2)+"M"; if(x>=1e3)return (x/1e3).toFixed(1)+"K"; return String(Math.round(x)); }
+  function renderCost(){
+    if(!elN) return;
+    var n=Math.pow(2,parseInt(elN.value,10)), w=512, g=8, rr=3;
+    elNv.textContent=n.toLocaleString();
+    var full=n*n, sp=n*(w+g+rr)+g*n; // window+random per token + global rows/cols
+    var lf=Math.log10(full), ls=Math.log10(sp), mx=lf;
+    document.getElementById("barFull").style.width=(lf/mx*100).toFixed(1)+"%";
+    document.getElementById("barSp").style.width=(ls/mx*100).toFixed(1)+"%";
+    document.getElementById("valFull").textContent=fmt(full);
+    document.getElementById("valSp").textContent=fmt(sp);
+    document.getElementById("stSave").textContent=(full/sp).toFixed(full/sp<10?1:0)+"×";
+    document.getElementById("stPer").textContent="~"+(w+g+rr+g)+" fixed";
+    postHeight();
+  }
+
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight); window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+  [elW,elG,elR].forEach(function(s){ if(s) s.addEventListener("input", render); }); render();
+  if(elN){ elN.addEventListener("input", renderCost); renderCost(); }
+})();
+</script>
+</body>
+</html>
