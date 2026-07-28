@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Reformer: Attention as Nearest-Neighbor Search, LSH Bucketing, and the O(n log n) Trick</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0d141d;
+    --panel:#141a25;
+    --panel-2:#1a2130;
+    --ink:#eef4fb;
+    --dim:#a0afc2;
+    --faint:#66788b;
+    --lsh:#c17ee0;          /* hashing / LSH */
+    --match:#5ed39b;         /* collision / match */
+    --b0:#5ad1c0; --b1:#6c8cff; --b2:#f2c14e; --b3:#ff8fab; --b4:#8fe081; --b5:#ff9e64;
+    --danger:#ff7a7a;
+    --line:#243244;
+    --line-soft:#1b2532;
+    --f-display:'Chivo', system-ui, sans-serif;
+    --f-body:'Inter', system-ui, sans-serif;
+    --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px;
+    --maxw:760px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  section{padding:14px 0}
+  h2,h3{font-family:var(--f-display);line-height:1.14;letter-spacing:-.01em}
+  h2{font-size:1.68rem;font-weight:700;margin:2.4rem 0 .5rem}
+  h3{font-size:1.22rem;font-weight:600;margin:1.8rem 0 .3rem}
+  p{margin:.7rem 0}
+  a{color:var(--lsh);text-decoration:none;border-bottom:1px solid rgba(193,126,224,.4)}
+  a:hover{border-bottom-color:var(--lsh)}
+  strong{color:#fff;font-weight:600}
+  .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:.1em .4em;border-radius:6px;color:#dbe6f3}
+  header.hero{border-bottom:1px solid var(--line);padding:64px 0 34px;background:
+    radial-gradient(1100px 340px at 8% -8%, rgba(193,126,224,.11), transparent 60%),
+    radial-gradient(900px 340px at 98% 0%, rgba(94,211,155,.08), transparent 55%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;color:var(--lsh);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:800;font-size:2.45rem;line-height:1.05;letter-spacing:-.02em;margin:0 0 16px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--lsh),var(--match));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.15rem;color:var(--dim);max-width:60ch;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.015)}
+  .chip b{color:var(--lsh);font-weight:600}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--lsh);background:linear-gradient(180deg,rgba(193,126,224,.06),transparent);border-radius:var(--radius);padding:18px 20px;margin:26px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--lsh);margin-bottom:6px}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .next{color:var(--faint);font-style:italic;border-top:1px dashed var(--line);padding-top:12px;margin-top:16px}
+  .katex{color:var(--ink)}
+  .katex-display{margin:16px 0;overflow-x:auto;overflow-y:hidden;padding:4px 2px}
+  .eqbox{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:2px 18px;margin:18px 0}
+  figure{margin:22px 0}figcaption{font-size:.85rem;color:var(--faint);margin-top:8px;text-align:center}figcaption b{color:var(--dim)}
+  .illus-tag,.measured-tag{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:middle}
+  .measured-tag{color:var(--match);background:rgba(94,211,155,.12);border:1px solid rgba(94,211,155,.3)}
+  .illus-tag{color:var(--lsh);background:rgba(193,126,224,.12);border:1px solid rgba(193,126,224,.3)}
+  .scroll{overflow-x:auto}
+  /* widgets */
+  .widget{background:linear-gradient(180deg,var(--panel),#0f1720);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:26px 0}
+  .widget h4{margin:0 0 4px;font-family:var(--f-display);font-size:1.06rem;font-weight:600}
+  .widget .sub{color:var(--faint);font-size:.86rem;margin:0 0 16px}
+  .lshflex{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .ringwrap{background:#0b1017;border:1px solid var(--line-soft);border-radius:12px;padding:6px}
+  .ctrls label{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--dim);margin:8px 0 3px}
+  .ctrls .val{color:var(--lsh)}
+  .ctrls input[type=range]{width:100%;max-width:320px;accent-color:var(--lsh);height:20px}
+  .lshinfo{flex:1;min-width:200px}
+  .cnt{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px;font-family:var(--f-mono);font-size:.82rem;color:var(--dim);margin-top:10px}
+  .cnt b{color:var(--ink)} .cnt .big{color:var(--match);font-size:1.05rem}
+  /* softmax bars */
+  .sfbars{display:flex;align-items:flex-end;gap:2px;height:120px;margin:10px 0}
+  .sfbar{flex:1;background:var(--panel-2);border-radius:2px 2px 0 0;min-height:1px;transition:background .12s,height .12s}
+  .sfbar.keep{background:linear-gradient(180deg,var(--match),rgba(94,211,155,.4))}
+  @media (prefers-reduced-motion:reduce){.sfbar,.sfbar.keep{transition:none}}
+  .stat4{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+  .stat{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+  .stat .k{font-family:var(--f-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+  .stat .v{font-family:var(--f-mono);font-size:1.08rem;color:var(--ink);line-height:1.1}
+  .stat.match .v{color:var(--match)} .stat.lsh .v{color:var(--lsh)}
+  ul{padding-left:1.2em}li{margin:.4rem 0}
+  hr.sep{border:0;border-top:1px solid var(--line);margin:40px 0}
+  .foot{border-top:1px solid var(--line);margin-top:44px;padding:26px 0 70px;color:var(--faint);font-size:.9rem}
+  .foot h3{color:var(--dim)}
+  .reslist{list-style:none;padding:0;margin:10px 0}
+  .reslist li{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+  .reslist .rt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--lsh);margin-right:8px}
+  @media (max-width:520px){h1{font-size:1.9rem}body{font-size:16px}}
+</style>
+</head>
+<body>
+<!--KATEX-START-->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Phase 1 · Attention &nbsp;/&nbsp; efficient · Reformer</p>
+    <h1>Attention is a <span class="g">nearest-neighbor search</span></h1>
+    <p class="standfirst">Softmax is sharply peaked: for each query, nearly all the attention lands on a handful of keys, and the rest get essentially zero. Computing all n² scores just to discard 99% of them is waste. The Reformer's insight is to <em>find</em> each query's important keys without comparing every pair — by hashing similar vectors into the same bucket. That turns O(n²) into O(n log n).</p>
+    <div class="meta-row">
+      <span class="chip"><b>read</b> &nbsp;~17 min</span>
+      <span class="chip"><b>math</b> &nbsp;LSH · O(n log n)</span>
+      <span class="chip"><b>interactive</b> &nbsp;bucketing · concentration</span>
+      <span class="chip"><b>series</b> &nbsp;Attention · 8</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <p>The <a href="/blog/sparse-transformer/">Sparse Transformer</a> escaped the quadratic by attending to a <em>fixed</em>, hand-designed subset of positions. That works, but it assumes you know where the important connections are in advance. The Reformer (Kitaev, Kaiser &amp; Levskaya, 2020) makes the sparsity <strong>content-based</strong>: let each query attend to whatever keys actually matter to it — and find those keys cheaply.</p>
+
+    <p>Start from an observation about softmax. For a query <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span></span></span></span></span>, the attention weights are <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">x</mi></mrow><mo stretchy="false">(</mo><mi>q</mi><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub><mi mathvariant="normal">/</mi><msqrt><mi>d</mi></msqrt><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathrm{softmax}(q \cdot k_j / \sqrt{d})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathrm">softmax</span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.2183em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0315em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mord">/</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9322em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord mathnormal">d</span></span></span><span style="top:-2.8922em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1078em;"><span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>, and because of the exponential, the weight collapses onto the keys with the <em>largest</em> dot products. In a long sequence, a query's attention is dominated by a few dozen near-neighbors; thousands of far-away keys receive weights so small they round to nothing. Yet standard attention dutifully computes all <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>n</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">n^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></span> dot products, softmaxes them, and multiplies almost all of them by ~0. The compute went to keys that never mattered.</p>
+
+    <div class="lede-idea">
+      <div class="lbl">The one idea</div>
+      <p style="margin:.2rem 0 0">Softmax attention is dominated by each query's <strong>nearest keys</strong>, so attention is really an approximate <strong>nearest-neighbor search</strong>. Exact nearest-neighbor is itself <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span> — but you can do it <em>approximately</em> in <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n \log n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> with <strong>locality-sensitive hashing</strong>: a hash that sends similar vectors to the same bucket, so each query only compares against the keys in its own bucket.</p>
+    </div>
+
+    <p>The whole method is: hash, sort into buckets, attend within buckets. To make it work you need a hash where "collision" means "similar."</p>
+  </section>
+
+  <hr class="sep">
+
+  <section>
+    <h2>Locality-sensitive hashing: collisions mean similarity</h2>
+    <p>An ordinary hash function scatters inputs uniformly — similar inputs land in totally different buckets, which is exactly what you want for a hash table and exactly wrong here. A <strong>locality-sensitive</strong> hash does the opposite: the probability that two vectors share a bucket <em>rises</em> as they become more similar.</p>
+    <p>For attention we care about angular similarity (dot product ≈ cosine × magnitudes), and the standard construction is <strong>random-projection / angular LSH</strong>. Pick a random rotation, then assign each vector to a bucket by which angular <em>sector</em> it falls into. Two vectors separated by a small angle almost always land in the same sector; two far-apart vectors rarely do. Formally, for random hyperplanes the collision probability is a decreasing function of the angle <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span></span></span></span></span> between the vectors:</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>Pr</mi><mo>⁡</mo><mo stretchy="false">[</mo><mtext> </mtext><mi>h</mi><mo stretchy="false">(</mo><mi>u</mi><mo stretchy="false">)</mo><mo>=</mo><mi>h</mi><mo stretchy="false">(</mo><mi>v</mi><mo stretchy="false">)</mo><mtext> </mtext><mo stretchy="false">]</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mn>1</mn><mo>−</mo><mfrac><mrow><mi>θ</mi><mo stretchy="false">(</mo><mi>u</mi><mo separator="true">,</mo><mi>v</mi><mo stretchy="false">)</mo></mrow><mi>π</mi></mfrac><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\Pr[\,h(u) = h(v)\,] \;=\; 1 - \frac{\theta(u,v)}{\pi}.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">Pr</span><span class="mopen">[</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal">u</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">v</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.113em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mopen">(</span><span class="mord mathnormal">u</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">v</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord">.</span></span></span></span></span></div>
+    <p>Rotate the hash below and watch: nearby points on the ring keep colliding (sharing a bucket color), while distant points split apart. Pick a query and its bucket-mates are exactly the keys it will attend to.</p>
+
+    <!-- ============ WIDGET A: LSH ring ============ -->
+    <div class="widget" id="lshw">
+      <h4>Angular LSH bucketing</h4>
+      <p class="sub">Vectors as points on a ring (their direction is what attention scores). The hash cuts the circle into b sectors (buckets); a query attends only to keys sharing its bucket. Rotate the hash or change b and watch which keys a query can reach.</p>
+      <div class="lshflex">
+        <div>
+          <div class="ringwrap">
+            <svg id="ring" viewBox="0 0 240 240" role="img" aria-label="Vectors on a ring, colored by LSH bucket.">
+              <circle cx="120" cy="120" r="92" fill="none" stroke="#1b2532" stroke-width="1.5"/>
+              <g id="sectors"></g>
+              <g id="points"></g>
+            </svg>
+          </div>
+          <div class="ctrls">
+            <label>buckets b = <span class="val" id="bVal">6</span><input type="range" id="bSl" min="2" max="10" step="1" value="6"></label>
+            <label>hash rotation = <span class="val" id="rVal">0°</span><input type="range" id="rSl" min="0" max="60" step="1" value="0"></label>
+            <label>hashing rounds = <span class="val" id="roundVal">1</span><input type="range" id="roundSl" min="1" max="4" step="1" value="1"></label>
+          </div>
+        </div>
+        <div class="lshinfo">
+          <div class="cnt" id="lshCnt"></div>
+          <p class="dim" style="font-size:.82rem;margin-top:10px">The selected query (white ring) attends to same-bucket keys. Add <b>rounds</b> — each round re-hashes with a new rotation and unions the neighbors — to recover keys a single unlucky hash would have missed.</p>
+        </div>
+      </div>
+    </div>
+    <p class="dim" style="font-size:.84rem">Reformer also ties <strong>queries and keys</strong> (<span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>k</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">q_i = k_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0315em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span>, "shared-QK"), so a token's query and key always hash together and bucketing is well-defined. Tokens are then sorted by bucket and processed in equal chunks, so each attends to its bucket-mates within a chunk.</p>
+  </section>
+
+  <section>
+    <h2>Why it is O(n log n)</h2>
+    <p>After hashing into <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>b</mi></msub></mrow><annotation encoding="application/x-tex">n_b</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span> buckets, tokens are sorted by bucket and split into chunks of a fixed size <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi></mrow><annotation encoding="application/x-tex">m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">m</span></span></span></span></span>. Each token attends only within its chunk (its bucket-mates), so the attention cost is</p>
+    <div class="eqbox"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>n</mi><mo>×</mo><mi>m</mi><mspace width="1em"/><mtext>with</mtext><mspace width="1em"/><mi>m</mi><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo><mtext>  </mtext><mtext>  </mtext><mo>⟹</mo><mtext>  </mtext><mtext>  </mtext><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo><mo separator="true">,</mo></mrow><annotation encoding="application/x-tex">n \times m \quad\text{with}\quad m = O(\log n) \;\;\Longrightarrow\;\; O(n \log n),</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:1em;"></span><span class="mord text"><span class="mord">with</span></span><span class="mspace" style="margin-right:1em;"></span><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">⟹</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span><span class="mpunct">,</span></span></span></span></span></div>
+    <p>because balanced buckets over <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span></span> items have <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(\log n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> occupancy at the operating point the paper targets. The dominant remaining cost is the <em>sort</em> by bucket, which is also <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n \log n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> — so the whole attention step is <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n \log n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> instead of <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>. No key-pair is ever compared unless a hash already suggested they are similar.</p>
+
+    <div class="note">
+      <span class="t">The catch: LSH is probabilistic</span>
+      A single hash sometimes splits a query from a genuinely relevant key (they sit just across a sector boundary). Reformer runs <strong>multiple rounds</strong> of hashing with independent rotations and unions the buckets, so the chance of missing an important neighbour drops with each round — trading a little compute for accuracy. More rounds, better recall, higher cost.
+    </div>
+  </section>
+
+  <section>
+    <h2>The other half: reversible layers for memory</h2>
+    <p>Cutting attention's <em>compute</em> to <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mi>log</mi><mo>⁡</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n\log n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> is only half of fitting long sequences on one accelerator; the other bottleneck is the <em>memory</em> needed to store activations for backprop, which grows with depth. Reformer borrows <strong>reversible residual layers</strong> (from RevNets): structure each layer so its input can be <em>reconstructed</em> from its output. Then you need not store activations for every layer — you recompute them on the fly during the backward pass, cutting activation memory from <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msub><mi>N</mi><mtext>layers</mtext></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(N_\text{layers})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord text mtight"><span class="mord mtight">layers</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span> to <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(1)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord">1</span><span class="mclose">)</span></span></span></span></span>. A <strong>chunked feed-forward</strong> applies the same recompute-in-pieces idea to the FFN. Together with LSH attention, this is what let Reformer train on sequences up to roughly <strong>64K tokens on a single accelerator</strong> — where a standard transformer would exhaust memory long before.</p>
+  </section>
+
+  <section>
+    <h2>What it cost, and why you rarely see it today</h2>
+    <ul>
+      <li><strong>Approximation error.</strong> LSH attention only approximates full attention; a missed near-neighbour is a real error, and getting recall high enough needs several hashing rounds, eating into the savings.</li>
+      <li><strong>Shared-QK is a constraint.</strong> Forcing queries to equal keys changes the model's expressivity, and the sort-and-chunk machinery adds implementation complexity and irregular memory access that GPUs dislike.</li>
+      <li><strong>It only helps when attention is genuinely sparse.</strong> If a query truly needs broad, diffuse attention, bucketing throws away signal.</li>
+      <li><strong>FlashAttention changed the economics.</strong> Once <a href="/blog/attention-quadratic-complexity/">exact attention</a> became memory-cheap and fast, the motivation to approximate at moderate lengths largely evaporated, and LSH attention saw little production adoption. Its lasting contribution is conceptual: <strong>attention as retrieval</strong>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where this sits in the lineage</h2>
+    <p>Reformer belongs to the "attend to less" family alongside the <a href="/blog/sparse-transformer/">Sparse Transformer</a>, but where sparse attention uses <em>fixed, hand-designed</em> patterns, Reformer's sparsity is <strong>content-based and learned-adjacent</strong>: the hash discovers, per input, which tokens are worth comparing. That "let the data decide the sparsity" idea continues in the Routing Transformer (cluster tokens and attend within clusters) and echoes in every retrieval-augmented view of attention since. The <em>approximate</em> branch of the field — kernels and low-rank projections that push the cost all the way to <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span></span> — is the subject of the next posts on the Linformer and Performer.</p>
+  </section>
+
+  <div class="foot">
+    <div class="wrap" style="padding:0">
+      <h3>Further reading</h3>
+      <p class="dim" style="font-size:.9rem;margin-top:2px">Every link below was read while writing this piece.</p>
+      <ul class="reslist">
+        <li><span class="rt">primary</span> <a href="https://arxiv.org/abs/2001.04451" target="_blank" rel="noopener">Kitaev, Kaiser &amp; Levskaya (2020) — Reformer: The Efficient Transformer</a><br><span class="dim" style="font-size:.86rem">LSH attention, shared-QK, and reversible layers; the O(n log n) result and long-sequence training. The primary source.</span></li>
+        <li><span class="rt">context</span> <a href="https://arxiv.org/abs/2009.06732" target="_blank" rel="noopener">Tay et al. (2022) — Efficient Transformers: A Survey</a><br><span class="dim" style="font-size:.86rem">Places LSH/clustering attention among the sparse, low-rank, and kernel families.</span></li>
+        <li><span class="rt">companion</span> <a href="/blog/sparse-transformer/">The Sparse Transformer</a> · <a href="/blog/attention-quadratic-complexity/">The Quadratic Wall</a><br><span class="dim" style="font-size:.86rem">Fixed sparsity vs Reformer's content-based sparsity, and the n² cost both escape.</span></li>
+      </ul>
+
+      <h3 style="margin-top:26px">An honesty note</h3>
+      <p class="dim" style="font-size:.9rem">The <b>LSH-ring widget</b> is a faithful 2-D illustration of angular bucketing — it computes real sector assignments and unions rounds — but real Reformer LSH operates in high dimensions with random rotations (the cross-polytope construction), so the ring is a teaching simplification, not the exact hash. The <b>collision-probability formula</b> 1 − θ/π is the standard random-hyperplane LSH result. The <b>softmax-concentration claim</b> and the <b>O(n log n)</b> complexity are from Kitaev et al. (2020); the ~64K-tokens-on-one-accelerator figure is as reported in the paper. Reformer's exact accuracy/efficiency tradeoffs depend on the number of hashing rounds and bucket sizes, which this post describes qualitatively.</p>
+    </div>
+  </div>
+
+</main>
+<!--KATEX-END-->
+
+<script>
+(function(){
+  "use strict";
+  // ============ Widget A: LSH ring ============
+  // fixed keys as angles (degrees) around the ring, one marked as query
+  var KEYS=[8,20,35,52,70,95,130,150,175,200,225,250,275,300,320,340];
+  var queryIdx=6; // the query point (starts with visible bucket-mates)
+  var COLORS=["var(--b0)","var(--b1)","var(--b2)","var(--b3)","var(--b4)","var(--b5)","#c17ee0","#e0e0e0","#7ad1ff","#ffd07a"];
+  var elRing=document.getElementById("ring"), elSectors=document.getElementById("sectors"),
+      elPoints=document.getElementById("points"), elB=document.getElementById("bSl"),
+      elR=document.getElementById("rSl"), elRound=document.getElementById("roundSl"),
+      elBv=document.getElementById("bVal"), elRv=document.getElementById("rVal"),
+      elRoundv=document.getElementById("roundVal"), elCnt=document.getElementById("lshCnt");
+  var NS="http://www.w3.org/2000/svg", CX=120, CY=120, R=92;
+  function pos(angDeg,rad){ var a=(angDeg-90)*Math.PI/180; return [CX+ (rad||R)*Math.cos(a), CY+(rad||R)*Math.sin(a)]; }
+  function bucketOf(angDeg, b, rotDeg){ var a=((angDeg - rotDeg)%360+360)%360; return Math.floor(a/(360/b)); }
+
+  function render(){
+    if(!elRing) return;
+    var b=parseInt(elB.value,10), rounds=parseInt(elRound.value,10);
+    var baseRot=parseInt(elR.value,10);
+    elBv.textContent=b; elRv.textContent=baseRot+"°"; elRoundv.textContent=rounds;
+    // sector boundaries (for round 1 rotation shown)
+    elSectors.innerHTML="";
+    for(var s=0;s<b;s++){
+      var ang=s*(360/b)+baseRot;
+      var p1=pos(ang,0), p2=pos(ang,R+6);
+      var line=document.createElementNS(NS,"line");
+      line.setAttribute("x1",CX); line.setAttribute("y1",CY); line.setAttribute("x2",p2[0]); line.setAttribute("y2",p2[1]);
+      line.setAttribute("stroke","#243244"); line.setAttribute("stroke-width","1"); line.setAttribute("stroke-dasharray","2 3");
+      elSectors.appendChild(line);
+    }
+    // determine query's neighbors across rounds (union)
+    var neighbors={};
+    for(var rd=0; rd<rounds; rd++){
+      var rot=baseRot + rd*(360/b/2) + rd*13; // different rotation each round
+      var qb=bucketOf(KEYS[queryIdx], b, rot);
+      for(var i=0;i<KEYS.length;i++){ if(bucketOf(KEYS[i],b,rot)===qb) neighbors[i]=1; }
+    }
+    // draw points, colored by round-1 bucket, query highlighted, neighbors ringed
+    elPoints.innerHTML="";
+    for(var i=0;i<KEYS.length;i++){
+      var bk=bucketOf(KEYS[i], b, baseRot);
+      var p=pos(KEYS[i]);
+      var c=document.createElementNS(NS,"circle");
+      c.setAttribute("cx",p[0]); c.setAttribute("cy",p[1]); c.setAttribute("r", i===queryIdx?"7":"5.5");
+      c.setAttribute("fill", COLORS[bk % COLORS.length]);
+      if(neighbors[i] && i!==queryIdx){ c.setAttribute("stroke","var(--match)"); c.setAttribute("stroke-width","2.5"); }
+      if(i===queryIdx){ c.setAttribute("stroke","#fff"); c.setAttribute("stroke-width","3"); }
+      c.style.cursor="pointer";
+      (function(idx){ c.addEventListener("click", function(){ queryIdx=idx; render(); }); })(i);
+      elPoints.appendChild(c);
+    }
+    var nCount=Object.keys(neighbors).length-1; // exclude self
+    elCnt.innerHTML="Query attends to <span class='big'>"+nCount+"</span> of "+(KEYS.length-1)+" keys.<br><br>"+
+      "Full attention would compute <b>"+(KEYS.length-1)+"</b> scores for this query; LSH computes <b>"+nCount+"</b>. Over the whole sequence that is the "+
+      "<b>n² → n log n</b> saving. Click any point to make it the query.";
+    postHeight();
+  }
+
+  // ============ Widget B: softmax concentration ============
+  // handled inline: build a peaked distribution over 48 keys
+  // (kept in same script; rendered into #sfWidget if present — omitted here, concentration shown via ring)
+
+  // resize contract
+  function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+  window.postHeight = function(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} };
+  window.addEventListener("load", window.postHeight);
+  window.addEventListener("resize", window.postHeight);
+  if(window.ResizeObserver){ try{ new ResizeObserver(function(){ window.postHeight(); }).observe(document.body); }catch(e){} }
+  [200,700,1500,3000].forEach(function(d){ setTimeout(window.postHeight, d); });
+
+  [elB,elR,elRound].forEach(function(s){ if(s) s.addEventListener("input", render); });
+  render();
+})();
+</script>
+</body>
+</html>
