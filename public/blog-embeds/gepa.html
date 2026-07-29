@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>GEPA: Reading the Film Instead of the Scoreboard — Reflective Prompt Evolution</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0e0f15;
+    --panel:#161824;
+    --panel-2:#1c1f2e;
+    --ink:#f0f1f7;
+    --dim:#a6abbe;
+    --faint:#6b7288;
+    --film:#f2b64c;        /* the film / rich textual signal */
+    --reflect:#48d4c0;     /* reflection */
+    --reward:#ff7d7d;      /* scalar reward / the thin signal */
+    --pareto:#9d8cff;      /* pareto roster */
+    --skip:#2a2f3e;
+    --line:#262a3a;
+    --line-soft:#1b1f2c;
+    --f-display:'Instrument Serif', Georgia, serif;
+    --f-body:'Inter', system-ui, sans-serif;
+    --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px;
+    --maxw:770px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  section{padding:14px 0}
+  h1,h2,h3{font-family:var(--f-display);font-weight:400;line-height:1.08;letter-spacing:.005em}
+  h2{font-size:2.15rem;margin:2.6rem 0 .5rem}
+  h3{font-size:1.5rem;margin:1.9rem 0 .3rem;color:#fff}
+  p{margin:.75rem 0}
+  a{color:var(--reflect);text-decoration:none;border-bottom:1px solid rgba(72,212,192,.38)}
+  a:hover{border-bottom-color:var(--reflect)}
+  strong{color:#fff;font-weight:600}
+  em{color:#e7e9f2}
+  .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.86em;background:var(--panel-2);padding:.12em .42em;border-radius:6px;color:#e2e7f3}
+  header.hero{border-bottom:1px solid var(--line);padding:66px 0 36px;background:
+    radial-gradient(1100px 360px at 6% -10%, rgba(242,182,76,.10), transparent 60%),
+    radial-gradient(950px 340px at 99% -4%, rgba(72,212,192,.09), transparent 56%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--film);margin:0 0 16px}
+  h1{font-size:3.2rem;line-height:1.0;margin:0 0 18px;color:#fff}
+  h1 .g{font-style:italic;background:linear-gradient(100deg,var(--film),var(--reflect));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.2rem;color:var(--dim);max-width:62ch;margin:0;line-height:1.6}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:26px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 11px;border-radius:100px;background:rgba(255,255,255,.015)}
+  .chip b{color:var(--film);font-weight:600}
+  .byline{font-family:var(--f-mono);font-size:.72rem;color:var(--faint);margin-top:18px;letter-spacing:.04em}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--film);background:linear-gradient(180deg,rgba(242,182,76,.06),transparent);border-radius:var(--radius);padding:20px 22px;margin:30px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--film);margin-bottom:8px}
+  .lede-idea p{margin:0;font-size:1.12rem;color:#eef0f7}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:15px 17px;margin:20px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:6px}
+  .next{color:var(--faint);font-style:italic;font-family:var(--f-body)}
+  ul,ol{color:var(--ink);padding-left:1.2rem}
+  li{margin:.4rem 0}
+  .katex{color:var(--ink);font-size:1.02em}
+  .mathblock{overflow-x:auto;overflow-y:hidden;margin:1.2rem 0;padding:6px 2px}
+  .metaphor{border:1px solid var(--line);background:linear-gradient(180deg,rgba(72,212,192,.05),rgba(72,212,192,0));border-left:3px solid var(--reflect);border-radius:var(--radius);padding:14px 18px;margin:20px 0}
+  .metaphor .t{font-family:var(--f-mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--reflect);display:block;margin-bottom:5px}
+  .metaphor p{margin:.3rem 0;font-size:.98rem;color:var(--dim)}
+
+  /* trace figure */
+  .trace{display:grid;grid-template-columns:1fr;gap:12px;margin:22px 0}
+  @media(min-width:660px){.trace{grid-template-columns:1fr 1fr 1fr;align-items:stretch}}
+  .tcard{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:14px 15px;position:relative}
+  .tcard .h{font-family:var(--f-mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+  .tcard.film .h{color:var(--film)} .tcard.reflect .h{color:var(--reflect)} .tcard.play .h{color:var(--pareto)}
+  .tcard p{font-size:.9rem;margin:.3rem 0;color:var(--dim);line-height:1.55}
+  .tcard .q{color:#dfe3ef;font-family:var(--f-mono);font-size:.8rem;background:var(--panel-2);border-radius:8px;padding:9px 11px;margin-top:8px;line-height:1.5}
+  .tarrow{display:none}
+  @media(min-width:660px){.tarrow{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:1.2rem}}
+
+  /* widgets */
+  .widget{border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),#12131c);border-radius:var(--radius);padding:20px 20px 22px;margin:26px 0}
+  .widget .wt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+  .widget .wh{font-family:var(--f-display);font-size:1.35rem;color:#fff;margin:0 0 4px}
+  .widget .wd{font-size:.92rem;color:var(--dim);margin:0 0 16px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:100px;padding:3px;background:var(--panel-2);gap:2px}
+  .seg button{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.03em;color:var(--dim);background:transparent;border:0;padding:7px 15px;border-radius:100px;cursor:pointer;transition:.15s}
+  .seg button.on{color:#0e0f15;font-weight:600}
+  .seg button.on.greedy{background:var(--reward)} .seg button.on.pareto{background:var(--pareto)}
+  .seg button:focus-visible{outline:2px solid var(--reflect);outline-offset:2px}
+
+  table.matrix{border-collapse:collapse;width:100%;margin-top:16px;font-family:var(--f-mono);font-size:.82rem}
+  table.matrix th,table.matrix td{border:1px solid var(--line-soft);padding:8px 6px;text-align:center;color:var(--dim);transition:.15s}
+  table.matrix th{color:var(--faint);font-weight:500;font-size:.72rem}
+  table.matrix td.cand{text-align:left;color:#e7e9f2;white-space:nowrap;padding-left:10px}
+  table.matrix td.win{background:rgba(157,140,255,.16);color:#fff;font-weight:600;box-shadow:inset 0 0 0 1px rgba(157,140,255,.5)}
+  table.matrix td.gwin{background:rgba(255,125,125,.14);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,125,125,.45)}
+  table.matrix tr.dropped td{opacity:.32}
+  table.matrix td.avg{color:#cbd0e0}
+  .roster{margin-top:18px;display:grid;gap:9px}
+  .rrow{display:grid;grid-template-columns:52px 1fr 62px;align-items:center;gap:12px;font-family:var(--f-mono);font-size:.78rem}
+  .rrow .nm{color:#e7e9f2}
+  .rrow.out .nm{color:var(--faint);text-decoration:line-through}
+  .bar{height:9px;border-radius:6px;background:var(--panel-2);overflow:hidden}
+  .bar span{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--pareto),#c3b6ff);transition:width .35s}
+  .rrow.out .bar span{background:var(--skip)}
+  .rrow .pct{text-align:right;color:var(--dim)}
+  .callout{margin-top:16px;border:1px dashed var(--line);border-radius:10px;padding:12px 14px;font-size:.9rem;color:var(--dim);background:rgba(255,255,255,.012)}
+  .callout b{color:var(--pareto)}
+  .callout.greedy b{color:var(--reward)}
+
+  .effgrid{display:grid;grid-template-columns:1fr;gap:16px;align-items:center}
+  @media(min-width:640px){.effgrid{grid-template-columns:1fr 210px}}
+  .readouts{display:grid;gap:10px}
+  .ro{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--panel-2)}
+  .ro .k{font-family:var(--f-mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .ro .v{font-size:1.5rem;font-family:var(--f-display);margin-top:2px}
+  .ro.gepa .v{color:var(--reflect)} .ro.grpo .v{color:var(--reward)}
+  .ro .s{font-size:.76rem;color:var(--dim)}
+  .slider-row{margin-top:18px}
+  .slider-row label{font-family:var(--f-mono);font-size:.72rem;color:var(--dim);display:flex;justify-content:space-between;margin-bottom:8px}
+  .slider-row output{color:var(--film)}
+  input[type=range]{width:100%;height:26px;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:5px;background:linear-gradient(90deg,var(--reflect),var(--film))}
+  input[type=range]::-moz-range-track{height:5px;border-radius:5px;background:linear-gradient(90deg,var(--reflect),var(--film))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;margin-top:-7px;border:2px solid var(--film)}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--film)}
+  input[type=range]:focus-visible{outline:2px solid var(--reflect);outline-offset:4px}
+
+  /* results table */
+  .rtbl-wrap{overflow-x:auto;margin:18px 0}
+  table.results{border-collapse:collapse;width:100%;min-width:460px;font-size:.9rem}
+  table.results th,table.results td{border-bottom:1px solid var(--line-soft);padding:10px 12px;text-align:right}
+  table.results th:first-child,table.results td:first-child{text-align:left}
+  table.results thead th{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:500}
+  table.results td.metric{color:#e7e9f2;font-family:var(--f-mono)}
+  table.results tr:last-child td{border-bottom:0}
+  table.results .hi{color:var(--reflect);font-weight:600}
+
+  .algo{border:1px solid var(--line);background:#0c0d13;border-radius:12px;padding:16px 18px;margin:22px 0;font-family:var(--f-mono);font-size:.82rem;line-height:1.7;color:var(--dim);overflow-x:auto}
+  .algo .kw{color:var(--film)} .algo .cm{color:var(--faint);font-style:italic} .algo b{color:#e7e9f2}
+  .algo .ln{white-space:pre}
+
+  .refs{display:grid;gap:16px;margin-top:12px}
+  .refgrp .gh{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--film);margin-bottom:7px}
+  .refgrp ul{list-style:none;padding:0;margin:0}
+  .refgrp li{margin:.32rem 0;font-size:.92rem;color:var(--dim)}
+  .refgrp li b{color:#e7e9f2;font-weight:600}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0 60px;color:var(--faint);font-size:.86rem}
+  .prov{border:1px solid var(--line-soft);border-radius:12px;background:var(--panel);padding:15px 17px;font-size:.86rem;color:var(--dim)}
+  .prov .t{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:7px}
+  .tag{display:inline-block;font-family:var(--f-mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--faint);vertical-align:middle}
+  .tag.ill{color:var(--film);border-color:rgba(242,182,76,.4)}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+  @media(max-width:520px){h1{font-size:2.5rem}h2{font-size:1.8rem}.rrow{grid-template-columns:46px 1fr 54px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Prompt Optimization &nbsp;·&nbsp; arXiv 2507.19457 &nbsp;·&nbsp; ICLR 2026 Oral</p>
+    <h1>Reading the <span class="g">Film</span>,<br>Not the Scoreboard</h1>
+    <p class="standfirst">Reinforcement learning teaches a language model from a single number: the reward. GEPA argues that the <em>words</em> in a failed rollout carry far more signal than its score, and that an optimizer which reads the trace, writes a diagnosis, and edits the prompt can beat RL while spending up to 35&times; fewer rollouts.</p>
+    <div class="meta-row">
+      <span class="chip"><b>35&times;</b> fewer rollouts vs GRPO</span>
+      <span class="chip">+6&ndash;20% over <b>GRPO</b></span>
+      <span class="chip">+&gt;10% over <b>MIPROv2</b></span>
+      <span class="chip">Reflective + <b>Pareto</b></span>
+    </div>
+    <p class="byline">A deep dive on GEPA (Genetic-Pareto). Agrawal et al., 2025 &mdash; UC Berkeley, Stanford, Databricks, MIT and others.</p>
+  </div>
+</header>
+
+<main class="wrap">
+<!--KATEX-START-->
+
+<div class="lede-idea">
+  <div class="lbl">The one idea</div>
+  <p>A scalar reward compresses an entire trajectory into a single number and throws the rest away. Language does not have to. GEPA lets a model <strong>read what went wrong in plain text</strong> and rewrite its own instructions, and it keeps a roster of prompts where each one is the best at <em>something</em> rather than chasing a single best-on-average winner.</p>
+</div>
+
+<div class="metaphor">
+  <span class="t">The metaphor we will keep</span>
+  <p>Two coaching staffs prepare for the season. The first is told only the <strong>final score</strong> of each game and must infer, over thousands of games, which adjustments helped. The second <strong>watches the game film</strong>, writes notes on the exact play that broke, and rewrites that page of the playbook before the next game. GEPA is the second staff. The film is the execution trace, the score is the reward, the playbook is the prompt, and the depth chart of specialists is the Pareto frontier.</p>
+</div>
+
+<section>
+<h2>The signal problem</h2>
+<p>Adapting a language model to a new task usually means one of two things. You can change its <em>weights</em> with reinforcement learning, or you can change its <em>text</em> &mdash; the prompts and instructions that steer it. GEPA is squarely in the second camp, and to see why that camp matters you first have to feel how little information a reward carries.</p>
+
+<p>The dominant RL recipe for LLMs is a policy-gradient method like <strong>GRPO</strong> (Group Relative Policy Optimization). You sample a trajectory <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>τ</mi></mrow><annotation encoding="application/x-tex">\tau</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span></span></span></span></span> &mdash; a full run of the system, with its reasoning, tool calls and outputs &mdash; score it with a reward, and nudge the weights <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span></span></span></span></span> up the gradient of expected reward:</p>
+
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="normal">∇</mi><mi>θ</mi></msub><mtext> </mtext><mi>J</mi><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><msub><mi mathvariant="double-struck">E</mi><mrow><mi>τ</mi><mo>∼</mo><msub><mi>π</mi><mi>θ</mi></msub></mrow></msub><mtext> ⁣</mtext><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">[</mo><mtext> </mtext><msub><mi mathvariant="normal">∇</mi><mi>θ</mi></msub><mi>log</mi><mo>⁡</mo><msub><mi>π</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo><mtext>  </mtext><mo>⋅</mo><mtext>  </mtext><mi>A</mi><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo><mtext> </mtext><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">]</mo></mrow><annotation encoding="application/x-tex">\nabla_\theta\, J(\theta) \;=\; \mathbb{E}_{\tau \sim \pi_\theta}\!\Big[\, \nabla_\theta \log \pi_\theta(\tau)\; \cdot\; A(\tau) \,\Big]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord">∇</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.8em;vertical-align:-0.65em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.1132em;">τ</span><span class="mrel mtight">∼</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0359em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="katex-sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2559em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mord"><span class="delimsizing size2">[</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord">∇</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.8em;vertical-align:-0.65em;"></span><span class="mord mathnormal">A</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="delimsizing size2">]</span></span></span></span></span></span>
+</div>
+
+<p>Here <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mi>θ</mi></msub></mrow><annotation encoding="application/x-tex">\pi_\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span> is the model, <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>log</mi><mo>⁡</mo><msub><mi>π</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\log \pi_\theta(\tau)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="mclose">)</span></span></span></span></span> the log-probability it assigned to that trajectory, and <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">A(\tau)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">A</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="mclose">)</span></span></span></span></span> the <em>advantage</em> &mdash; a scalar saying whether this run beat the group average. Stare at that <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">A(\tau)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">A</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="mclose">)</span></span></span></span></span>. Everything the run did, every reasoning step and tool result, is squeezed into one number before it can teach the model anything. That is the scoreboard. The play-by-play film is discarded.</p>
+
+<p>Because each rollout returns so little, you need enormous numbers of them. In GEPA's own comparison, the GRPO baseline consumes roughly <strong>24,000 rollouts</strong> (with LoRA) to learn a task. That is the pain the paper sets out to remove.</p>
+<p class="next">So the obvious question: if the trajectory is full of readable information, why are we throwing it away?</p>
+</section>
+
+<section>
+<h2>Two things you would try first &mdash; and how they break</h2>
+
+<h3>Naive attempt 1: keep using the scalar</h3>
+<p>Push harder on RL. Collect more rollouts, tune the reward. This works, eventually, but the sample cost is the whole problem. A scalar advantage gives the model no <em>direction</em> in text space; it must rediscover, from the win/loss column alone, that (say) it keeps forgetting to cite a source or mis-formatting a tool call. Thousands of games to learn what one film session would show.</p>
+
+<h3>Naive attempt 2: let an LLM improve the prompt, greedily</h3>
+<p>Fine &mdash; use the words. Run the system, ask a strong model &ldquo;here is what happened, write a better prompt,&rdquo; keep the new prompt if it scores higher, repeat. This is the right instinct, and it is where GEPA starts. But the naive version has a specific, fatal move: <strong>always mutate the current best candidate.</strong></p>
+<p>Greedy best-average selection <em>collapses</em>. The paper reports that always picking the single best-scoring candidate drove the search into a local optimum after essentially one improvement, then spent the rest of the budget failing to refine it. In coaching terms: you crown one game plan, bench everything else, and now every practice rep tries to polish that one plan &mdash; including throwing away the trick play that was the <em>only</em> thing that beat the blitz.</p>
+<div class="note"><span class="t">Why this is the load-bearing failure</span>The reason GEPA is more than &ldquo;ask GPT to fix the prompt in a loop&rdquo; is almost entirely its answer to <em>which candidate do I improve next?</em> Hold onto the collapse above; the Pareto section is built to prevent exactly it.</div>
+<p class="next">GEPA keeps the reflective-rewrite instinct from attempt 2 and fixes its selection. Two pieces: how it mutates, and how it chooses what to mutate.</p>
+</section>
+
+<section>
+<h2>Piece one: reflective mutation &mdash; watch the film</h2>
+<p>Instead of collapsing a rollout to a reward, GEPA hands the <em>whole trace</em> to a reflector LLM: the reasoning, the tool calls, the tool outputs, and &mdash; crucially &mdash; the evaluation metric's <strong>textual</strong> feedback. Not &ldquo;score 0.4,&rdquo; but &ldquo;the code failed to compile with this error,&rdquo; &ldquo;this unit test failed,&rdquo; &ldquo;the retrieved passage did not contain the answer.&rdquo; The paper calls this rich diagnostic text <strong>Actionable Side Information</strong>: the text-optimization analogue of a gradient.</p>
+
+<div class="trace">
+  <div class="tcard film">
+    <div class="h">The film · trace</div>
+    <p>One rollout, captured in full.</p>
+    <div class="q">Q: multi-hop question<br>reasoning: retrieved doc A<br>tool: search("...")<br>answer: wrong<br>metric: "answer omitted the second entity; only one hop taken"</div>
+  </div>
+  <div class="tarrow">&rarr;</div>
+  <div class="tcard reflect">
+    <div class="h">The notes · reflect</div>
+    <p>Reflector LLM diagnoses in words.</p>
+    <div class="q">Key observation: the prompt never told the model to decompose into sub-questions, so it stops after one retrieval.</div>
+  </div>
+  <div class="tarrow" style="grid-column:2 / 3">&rarr;</div>
+  <div class="tcard play">
+    <div class="h">The playbook · mutate</div>
+    <p>A targeted edit to that module's prompt.</p>
+    <div class="q">+ "Break the question into sub-questions; retrieve for each; combine before answering."</div>
+  </div>
+</div>
+
+<p>The reflector's output is not a vague &ldquo;try harder.&rdquo; In practice it produces structured rewrites &mdash; sections like <em>Key Observations</em>, <em>Purpose and Context</em>, <em>Practical Strategy</em> &mdash; that read like a coach's annotated page. The mutation is <strong>directed</strong>, not the random point-mutation of classical genetic algorithms. That is the &ldquo;reflective&rdquo; half of the name doing real work.</p>
+<p>The new prompt is then tried on a small <strong>minibatch (size 3)</strong>. If it improves, it joins the pool. Cheap to propose, cheap to test, and every proposal is anchored to a concrete failure it was written to fix.</p>
+<p class="next">Now the hard part. We have a growing pool of candidate prompts. Which one do we hand to the reflector next? Answer this wrong and you get the greedy collapse from before.</p>
+</section>
+
+<section>
+<h2>Piece two: the depth chart &mdash; Pareto selection</h2>
+<p>Here is GEPA's real idea. Do not track the best prompt. Track, <strong>for every single validation instance, which prompt is best on that instance</strong> &mdash; and keep all of them.</p>
+
+<p>Let <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">S[k][i]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mclose">]</span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span></span></span></span></span> be the score of candidate <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span></span> on validation instance <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></span>. For each instance, find the best score anyone achieves, and collect every candidate that ties it:</p>
+
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msup><mi>s</mi><mo lspace="0em" rspace="0em">∗</mo></msup><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mi>k</mi></munder><mtext> </mtext><mi>S</mi><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo><mo separator="true">,</mo><mspace width="2em"/><mspace width="2em"/><msup><mi mathvariant="script">P</mi><mo lspace="0em" rspace="0em">∗</mo></msup><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">{</mo><mtext> </mtext><mi>k</mi><mtext>  </mtext><mo>:</mo><mtext>  </mtext><mi>S</mi><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo><mo>=</mo><msup><mi>s</mi><mo lspace="0em" rspace="0em">∗</mo></msup><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo><mtext> </mtext><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">}</mo></mrow><annotation encoding="application/x-tex">s^{*}[i] \;=\; \max_{k}\, S[k][i], \qquad\qquad \mathcal{P}^{*}[i] \;=\; \big\{\, k \;:\; S[k][i] = s^{*}[i] \,\big\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7387em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∗</span></span></span></span></span></span></span></span></span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.5021em;vertical-align:-0.7521em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.3479em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7521em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mclose">]</span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.0822em;">P</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7387em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∗</span></span></span></span></span></span></span></span></span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mord"><span class="delimsizing size1">{</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">:</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mclose">]</span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7387em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∗</span></span></span></span></span></span></span></span></span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="delimsizing size1">}</span></span></span></span></span></span>
+</div>
+
+<p>That is the <em>instance-wise Pareto frontier</em>: the set of candidates that are champion of at least one instance. A prompt with a mediocre average survives as long as it is the sole master of one hard case &mdash; the trick play that beats one specific defense. GEPA then prunes candidates that are <strong>strictly dominated</strong> (some other candidate matches or beats them on every instance and wins somewhere), and samples the next parent stochastically, weighted by how many instances each candidate wins:</p>
+
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>f</mi><mo stretchy="false">[</mo><mi mathvariant="normal">Φ</mi><mo stretchy="false">]</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">∣</mo><mtext> </mtext><mo stretchy="false">{</mo><mtext> </mtext><mi>i</mi><mtext>  </mtext><mo>:</mo><mtext>  </mtext><mi mathvariant="normal">Φ</mi><mo>∈</mo><msup><mi mathvariant="script">P</mi><mo lspace="0em" rspace="0em">∗</mo></msup><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo><mtext> </mtext><mo stretchy="false">}</mo><mtext> </mtext><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">∣</mo><mo separator="true">,</mo><mspace width="2em"/><mspace width="2em"/><mi>Pr</mi><mo>⁡</mo><mo stretchy="false">[</mo><mtext>select </mtext><mi mathvariant="normal">Φ</mi><mo stretchy="false">]</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mfrac><mrow><mi>f</mi><mo stretchy="false">[</mo><mi mathvariant="normal">Φ</mi><mo stretchy="false">]</mo></mrow><mrow><munder><mo>∑</mo><msup><mi mathvariant="normal">Φ</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup></munder><mi>f</mi><mo stretchy="false">[</mo><msup><mi mathvariant="normal">Φ</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo stretchy="false">]</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">f[\Phi] \;=\; \Big|\,\{\, i \;:\; \Phi \in \mathcal{P}^{*}[i] \,\}\,\Big|, \qquad\qquad \Pr[\text{select } \Phi] \;=\; \frac{f[\Phi]}{\sum_{\Phi&#x27;} f[\Phi&#x27;]}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.1076em;">f</span><span class="mopen">[</span><span class="mord">Φ</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.8em;vertical-align:-0.65em;"></span><span class="mord"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.15em;"><span style="top:-3.15em;"><span class="pstrut" style="height:3.8em;"></span><span style="width:0.333em;height:1.8em;"><svg xmlns="http://www.w3.org/2000/svg" width="0.333em" height="1.8em" viewBox="0 0 333 1800"><path d="M145 15 v585 v600 v585 c2.667,10,9.667,15,21,15
+c10,0,16.667,-5,20,-15 v-585 v-600 v-585 c-2.667,-10,-9.667,-15,-21,-15
+c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v600 v585 h43z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.65em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mopen">{</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">:</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord">Φ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.8em;vertical-align:-0.65em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.0822em;">P</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7387em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∗</span></span></span></span></span></span></span></span></span><span class="mopen">[</span><span class="mord mathnormal">i</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mclose">}</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.15em;"><span style="top:-3.15em;"><span class="pstrut" style="height:3.8em;"></span><span style="width:0.333em;height:1.8em;"><svg xmlns="http://www.w3.org/2000/svg" width="0.333em" height="1.8em" viewBox="0 0 333 1800"><path d="M145 15 v585 v600 v585 c2.667,10,9.667,15,21,15
+c10,0,16.667,-5,20,-15 v-585 v-600 v-585 c-2.667,-10,-9.667,-15,-21,-15
+c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v600 v585 h43z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.65em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">Pr</span><span class="mopen">[</span><span class="mord text"><span class="mord">select </span></span><span class="mord">Φ</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.4127em;vertical-align:-0.9857em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:0em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1786em;"><span style="top:-2.4003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mtight">Φ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6828em;"><span style="top:-2.786em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="katex-sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.1076em;">f</span><span class="mopen">[</span><span class="mord"><span class="mord">Φ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6779em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mclose">]</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1076em;">f</span><span class="mopen">[</span><span class="mord">Φ</span><span class="mclose">]</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.9857em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span>
+</div>
+
+<p>Candidates that are best at more things are likelier to be chosen &mdash; so the search still exploits &mdash; but nothing that wins <em>anywhere</em> is ever cut, so the search never forgets an insight. That is the exploration&ndash;exploitation balance the greedy rule destroyed. The widget below lets you watch the two rules diverge on one score matrix.</p>
+
+<div class="widget" id="pw">
+  <div class="wt">Widget 1 · interactive</div>
+  <div class="wh">Greedy vs Pareto on the same roster</div>
+  <div class="wd">Five candidate prompts (rows), six validation instances (columns), scored 0&ndash;100. Flip the selection rule and watch which candidates survive to become parents. The greedy rule keeps one; Pareto keeps everyone who is champion of a column.</div>
+  <div class="seg" role="tablist" aria-label="Selection strategy">
+    <button id="bGreedy" class="greedy" role="tab" aria-selected="false">Greedy (best average)</button>
+    <button id="bPareto" class="pareto on" role="tab" aria-selected="true">Pareto (instance-wise)</button>
+  </div>
+  <table class="matrix" id="mtx">
+    <thead><tr><th>prompt</th><th>I1</th><th>I2</th><th>I3</th><th>I4</th><th>I5</th><th>I6</th><th>avg</th></tr></thead>
+    <tbody id="mtxBody"></tbody>
+  </table>
+  <div class="roster" id="roster"></div>
+  <div class="callout" id="callout"></div>
+</div>
+
+<p>The lesson lands hardest on <strong>P4</strong>. By average it is the worst candidate in the pool, so the greedy rule discards it immediately. But P4 is the <em>only</em> prompt that cracks instance I4 &mdash; and in a real run that lone strength is often the seed the reflector needs to build the eventual winner. Greedy never gets to find out. Pareto keeps P4 on the depth chart and occasionally sends it in.</p>
+<p class="next">One more genetic operator makes the roster more than the sum of its parts.</p>
+</section>
+
+<section>
+<h2>Piece three: system-aware merge</h2>
+<p>Real targets are <em>compound</em> systems &mdash; pipelines of several LLM modules, each with its own prompt. Over a run, different lineages improve different modules: one branch found a great retrieval instruction, another a great answer-formatting instruction. GEPA's <strong>system-aware merge</strong> is crossover with knowledge of that structure: take two Pareto-optimal candidates that excel on different modules and splice their improved prompts into one child that inherits both strengths.</p>
+<p>In coaching terms, you combine one staff's passing game plan with another's running game plan. Because the merge is guided by which module each parent actually improved, it is far more likely to produce a viable child than blindly averaging two prompts.</p>
+</section>
+
+<section>
+<h2>The loop, assembled</h2>
+<p>Every piece is now motivated, so the algorithm is just their order. GEPA counts its budget in <strong>rollouts</strong> &mdash; system executions on task instances &mdash; and runs until the budget <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi></mrow><annotation encoding="application/x-tex">B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span></span> is spent.</p>
+
+<div class="algo" aria-label="GEPA optimization loop, pseudocode">
+<div class="ln"><span class="cm"># GEPA: reflective prompt evolution with Pareto selection</span></div>
+<div class="ln"><span class="kw">init</span> pool <b>P</b> &larr; { seed prompt };  score it on the Pareto validation set</div>
+<div class="ln"><span class="kw">while</span> rollouts spent &lt; <b>B</b>:</div>
+<div class="ln">    &Phi; &larr; <span class="kw">select_parent</span>(<b>P</b>)          <span class="cm"># Pareto sample: prob &prop; instances won</span></div>
+<div class="ln">    m &larr; <span class="kw">choose_module</span>(&Phi;)          <span class="cm"># which prompt in the system to edit</span></div>
+<div class="ln">    trace &larr; <span class="kw">run</span>(&Phi;, minibatch of 3)  <span class="cm"># capture reasoning, tools, textual feedback</span></div>
+<div class="ln">    edit &larr; <span class="kw">reflect</span>(trace)          <span class="cm"># LLM diagnoses in words, rewrites module m</span></div>
+<div class="ln">    &Phi;&prime; &larr; &Phi; with module m &larr; edit</div>
+<div class="ln">    <span class="kw">if</span> score(&Phi;&prime;) &gt; score(&Phi;) on minibatch:</div>
+<div class="ln">        evaluate &Phi;&prime; on Pareto set; add to <b>P</b></div>
+<div class="ln">    <span class="kw">optionally</span>: &Phi;&Prime; &larr; <span class="kw">merge</span>(two Pareto candidates); test &amp; add</div>
+<div class="ln"><span class="kw">return</span> best candidate on held-out data</div>
+</div>
+<p>Two design choices keep it honest. The reflector only ever sees the <em>score</em> of held-out validation instances, never their answers, which limits how much it can memorize. And accepting a child only when it improves keeps the pool monotone in quality while the Pareto sampler keeps it diverse.</p>
+</section>
+
+<section>
+<h2>What it actually buys you</h2>
+<p>The headline comparison is against GRPO. Across their benchmark suite, GEPA <strong>outperforms GRPO by 6% on average and by up to 20%, while using up to 35&times; fewer rollouts</strong> &mdash; turning a budget of tens of thousands of rollouts into a few hundred. Against MIPROv2, the leading prompt optimizer, GEPA wins by <strong>more than 10%</strong> (for example, <strong>+12% on AIME-2025</strong>), and does it with prompts about <strong>33% shorter</strong>; GEPA's instruction-only optimization even beats MIPROv2's instruction-plus-few-shot optimization.</p>
+
+<p>The per-task scores from the paper's main table, for two backbones:</p>
+<div class="rtbl-wrap">
+<table class="results">
+  <thead><tr><th>Task</th><th>Qwen3-8B</th><th>GPT-4.1-mini</th></tr></thead>
+  <tbody>
+    <tr><td class="metric">HotpotQA</td><td>62.33</td><td>69.00</td></tr>
+    <tr><td class="metric">IFBench</td><td>38.61</td><td>52.72</td></tr>
+    <tr><td class="metric">HoVer</td><td>52.33</td><td>51.67</td></tr>
+    <tr><td class="metric">PUPA</td><td>91.85</td><td>94.47</td></tr>
+    <tr><td class="metric">Aggregate gain vs baseline</td><td class="hi">+12.44%</td><td class="hi">+14.29%</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="dim" style="font-size:.86rem">GEPA scores under each model, with the aggregate improvement GEPA delivered over the un-optimized baseline. Numbers as reported in the paper's Table 1.</p>
+
+<p>The sample-efficiency claim is the one worth feeling, not just reading. The widget below draws two <em>illustrative</em> learning curves whose endpoints are anchored to the paper's numbers: GEPA climbs steeply and plateaus within a few hundred rollouts; GRPO grinds toward comparable performance only near its 24,000-rollout budget. Slide the budget and read off where each method is.</p>
+
+<div class="widget" id="ew">
+  <div class="wt">Widget 2 · interactive <span class="tag ill">Illustrative</span></div>
+  <div class="wh">Performance per rollout: reflection vs policy gradient</div>
+  <div class="wd">Curve shapes are schematic (the paper reports learning curves, not a closed form); the endpoints are anchored to the reported ~24,000-rollout GRPO budget and GEPA's up-to-35&times; reduction. The point is the <em>shape</em>: rich textual feedback front-loads the gains.</div>
+  <div class="effgrid">
+    <div>
+      <svg id="effsvg" viewBox="0 0 460 240" width="100%" role="img" aria-label="Learning curves: GEPA rises fast and plateaus early; GRPO rises slowly toward 24000 rollouts">
+        <line x1="44" y1="200" x2="448" y2="200" stroke="#262a3a"/>
+        <line x1="44" y1="16" x2="44" y2="200" stroke="#262a3a"/>
+        <path id="grpoPath" fill="none" stroke="#ff7d7d" stroke-width="2.4"/>
+        <path id="gepaPath" fill="none" stroke="#48d4c0" stroke-width="2.4"/>
+        <line id="cursor" x1="44" y1="16" x2="44" y2="200" stroke="#f2b64c" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <circle id="gepaDot" r="4.5" fill="#48d4c0"/>
+        <circle id="grpoDot" r="4.5" fill="#ff7d7d"/>
+        <text x="46" y="14" fill="#6b7288" font-size="9" font-family="'JetBrains Mono',monospace">performance</text>
+        <text x="392" y="214" fill="#6b7288" font-size="9" font-family="'JetBrains Mono',monospace">rollouts &rarr;</text>
+      </svg>
+    </div>
+    <div class="readouts">
+      <div class="ro gepa"><div class="k">GEPA</div><div class="v" id="gepaV">&mdash;</div><div class="s" id="gepaS"></div></div>
+      <div class="ro grpo"><div class="k">GRPO</div><div class="v" id="grpoV">&mdash;</div><div class="s" id="grpoS"></div></div>
+    </div>
+  </div>
+  <div class="slider-row">
+    <label for="budget"><span>rollout budget</span><output id="budgetOut">300</output></label>
+    <input type="range" id="budget" min="1.7" max="4.38" step="0.01" value="2.48" aria-label="rollout budget on a log scale">
+  </div>
+</div>
+</section>
+
+<section>
+<h2>Where it costs you, and where it breaks</h2>
+<p>The same richness that makes GEPA strong is also its main hazard. Four honest caveats:</p>
+<ul>
+  <li><strong>Prompt overfitting and bloat.</strong> Because the reflector reads real failures, it can bake specific training examples straight into the prompt, and detail <em>accumulates</em> across iterations. Left unchecked, prompts grow long and generalize worse. Practitioners counter this with a strict held-out validation set that returns only a score, and with length regularization or length-aware proposers (community reports of roughly 4&times; compression at little quality cost &mdash; a practitioner result, not the paper's).</li>
+  <li><strong>The reflector must be strong.</strong> It is reasoning <em>about reasoning</em>; small models fail at it. GEPA effectively moves cost from many cheap rollouts to a few expensive frontier-model reflection calls. The saving is real, but it is not free.</li>
+  <li><strong>Failure has to be sayable.</strong> GEPA needs a metric that emits <em>text</em>, not just a number &mdash; &ldquo;feedback engineering.&rdquo; In domains where the failure mode cannot be expressed in language (a subtle numeric-quality signal, say), there is little for the reflector to grip.</li>
+  <li><strong>The data-abundant regime is unsettled.</strong> The authors are explicit that when rollouts and data are plentiful, full fine-tuning may still win. GEPA's decisive edge is the <em>few-rollout</em> regime.</li>
+</ul>
+<div class="note"><span class="t">On the code-optimization numbers</span>GEPA also works as an inference-time search over code. On NPUEval (AMD XDNA2 kernels) it lifted GPT-4o from <strong>4.25%</strong> to <strong>30.52%</strong> mean vector utilization; on KernelBench it pushed a near-zero fast<sub>1</sub> score above 20% with more search budget. The paper explicitly calls these <em>early results that warrant further study</em>, and this deep dive treats them the same way.</div>
+</section>
+
+<section>
+<h2>What comes next</h2>
+<p>GEPA ships as an open library and as an optimizer inside <strong>DSPy</strong>, where prompts are declared parameters and you swap optimizers the way you would swap a training loop. Its extension point is a small adapter with two methods: one that runs your system and returns a score, and one that surfaces the diagnostic trace for reflection &mdash; which is exactly the &ldquo;feedback engineering&rdquo; surface the caveats above point at.</p>
+<p>The open questions are the interesting ones. How does reflection quality scale with the optimizer model? Can the loop extend past single-module edits to whole agent architectures? And the deepest one, the framing of the whole paper: reward is not the only teacher. Wherever a system can <em>say</em> why it failed, that sentence may be worth thousands of rollouts of a scalar trying to imply the same thing.</p>
+</section>
+
+<section>
+<h2>Further reading</h2>
+<div class="refs">
+  <div class="refgrp">
+    <div class="gh">Primary source</div>
+    <ul>
+      <li><b><a href="https://arxiv.org/abs/2507.19457">GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</a></b> &mdash; Agrawal et al., arXiv 2507.19457 (ICLR 2026 oral). The abstract, claims, and version history.</li>
+      <li><b><a href="https://arxiv.org/html/2507.19457v1">Full HTML text</a></b> &mdash; the algorithm blocks, Table 1, and the code-optimization results live here, not in the abstract.</li>
+      <li><b><a href="https://openreview.net/forum?id=RQm2KQTM5r">OpenReview thread</a></b> &mdash; reviews and author responses for the ICLR submission.</li>
+    </ul>
+  </div>
+  <div class="refgrp">
+    <div class="gh">Implementation</div>
+    <ul>
+      <li><b><a href="https://github.com/gepa-ai/gepa">gepa-ai/gepa</a></b> &mdash; the reference library. The <code>GEPAAdapter</code> interface (<code>evaluate()</code> + <code>make_reflective_dataset()</code>) is where you plug in your own system and feedback.</li>
+      <li><b><a href="https://huggingface.co/papers/2507.19457">Hugging Face paper page</a></b> &mdash; links, discussion, and related work.</li>
+    </ul>
+  </div>
+  <div class="refgrp">
+    <div class="gh">Explainers</div>
+    <ul>
+      <li><b><a href="https://arxiviq.substack.com/p/gepa-reflective-prompt-evolution">arXiv IQ: GEPA</a></b> &mdash; a thorough walkthrough of the mechanism and the Pareto intuition.</li>
+      <li><b><a href="https://www.comet.com/site/blog/gepa-ai-optimization/">Comet: why reflection is replacing RL for agents</a></b> &mdash; good on <em>when</em> to reach for GEPA over GRPO.</li>
+      <li><b><a href="https://decagon.ai/blog/optimizing-gepa-for-production">Decagon: optimizing GEPA for production</a></b> &mdash; the practitioner's view on overfitting, prompt bloat, and test-driven feedback.</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+<div class="prov">
+  <span class="t">Honesty note</span>
+  Every score in the results table and every headline figure (6% / 20% / 35&times; vs GRPO, &gt;10% and +12% AIME-2025 vs MIPROv2, ~33% shorter prompts, the ~24,000-rollout baseline, and the NPUEval 4.25% &rarr; 30.52% code result) is <strong>measured</strong>, quoted from the paper. The abstract states &ldquo;six tasks&rdquo; for the GRPO comparison; the main table shows four benchmarks across two models, and AIME-2025 is cited for the MIPROv2 comparison &mdash; presented here as such. The two learning curves in Widget 2 are <span class="tag ill">illustrative</span>: their shapes are schematic and only their endpoints are anchored to reported numbers. The 4&times; prompt-compression figure is a community/practitioner result, not the paper's. Widget 1's score matrix is constructed to demonstrate the selection rules, not taken from the paper.
+</div>
+
+<!--KATEX-END-->
+</main>
+
+<footer class="wrap">
+  GEPA &mdash; Genetic-Pareto reflective prompt evolution. Deep dive built from arXiv 2507.19457 and the gepa-ai reference implementation. Interactive, self-contained, math pre-rendered.
+</footer>
+
+<script>
+/* ---- iframe auto-resize contract: define postHeight BEFORE anything calls it ---- */
+function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+function postHeight(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} }
+window.postHeight = postHeight;
+window.addEventListener("load", postHeight);
+window.addEventListener("resize", postHeight);
+if(window.ResizeObserver){ try{ new ResizeObserver(function(){ postHeight(); }).observe(document.body); }catch(e){} }
+[200,700,1500,3000].forEach(function(d){ setTimeout(postHeight, d); });
+
+/* ---------- Widget 1: Greedy vs Pareto ---------- */
+(function(){
+  var cands = [
+    {n:"P1", s:[80,55,40,30,60,50]},
+    {n:"P2", s:[60,85,55,45,40,55]},
+    {n:"P3", s:[70,75,78,72,68,66]},
+    {n:"P4", s:[20,25,30,88,35,40]},
+    {n:"P5", s:[65,60,50,55,90,92]}
+  ];
+  var nInst = 6;
+  var mode = "pareto";
+  var body = document.getElementById("mtxBody");
+  var roster = document.getElementById("roster");
+  var callout = document.getElementById("callout");
+  var bG = document.getElementById("bGreedy"), bP = document.getElementById("bPareto");
+
+  function avg(a){ var t=0; for(var i=0;i<a.length;i++) t+=a[i]; return t/a.length; }
+  // per-instance winners
+  function instanceWinners(){
+    var win=[];
+    for(var i=0;i<nInst;i++){
+      var best=-1; for(var k=0;k<cands.length;k++) best=Math.max(best,cands[k].s[i]);
+      win.push(best);
+    }
+    return win;
+  }
+  function greedyIdx(){
+    var bi=0,bv=-1;
+    for(var k=0;k<cands.length;k++){ var a=avg(cands[k].s); if(a>bv){bv=a;bi=k;} }
+    return bi;
+  }
+
+  function render(){
+    var win = instanceWinners();
+    var gi = greedyIdx();
+    // frequency f[phi]
+    var freq = cands.map(function(c){ var f=0; for(var i=0;i<nInst;i++) if(c.s[i]===win[i]) f++; return f; });
+    var totF = freq.reduce(function(a,b){return a+b;},0);
+
+    // matrix
+    body.innerHTML = "";
+    cands.forEach(function(c,k){
+      var tr = document.createElement("tr");
+      var kept = (mode==="greedy") ? (k===gi) : (freq[k]>0);
+      if(!kept) tr.className = "dropped";
+      var html = '<td class="cand">'+c.n+'</td>';
+      for(var i=0;i<nInst;i++){
+        var cls="";
+        if(mode==="pareto" && c.s[i]===win[i]) cls=" win";
+        if(mode==="greedy" && k===gi) cls=" gwin";
+        html += '<td class="'+cls.trim()+'">'+c.s[i]+'</td>';
+      }
+      html += '<td class="avg">'+avg(c.s).toFixed(1)+'</td>';
+      tr.innerHTML = html;
+      body.appendChild(tr);
+    });
+
+    // roster / sampling probabilities
+    roster.innerHTML = "";
+    cands.forEach(function(c,k){
+      var kept = (mode==="greedy") ? (k===gi) : (freq[k]>0);
+      var prob = (mode==="greedy") ? (k===gi?100:0) : (totF? Math.round(freq[k]/totF*100):0);
+      var row = document.createElement("div");
+      row.className = "rrow" + (kept?"":" out");
+      row.innerHTML = '<div class="nm">'+c.n+'</div>'+
+        '<div class="bar"><span style="width:'+prob+'%"></span></div>'+
+        '<div class="pct">'+prob+'%</div>';
+      roster.appendChild(row);
+    });
+
+    if(mode==="greedy"){
+      callout.className = "callout greedy";
+      callout.innerHTML = 'Greedy keeps only <b>P3</b> (highest average, '+avg(cands[gi].s).toFixed(1)+') and mutates it every round. '+
+        'Every other candidate is benched — including <b>P4</b>, the only prompt that wins I4. This is the collapse: one lineage, then a plateau.';
+    } else {
+      callout.className = "callout";
+      callout.innerHTML = 'Pareto keeps all <b>5</b> candidates — each is champion of at least one column — and samples the next parent with probability ∝ instances won. '+
+        '<b>P5</b> wins two columns so it is picked most; <b>P4</b> wins just I4 (score 88) yet still earns a roster spot the greedy rule threw away.';
+    }
+    setTimeout(postHeight, 40);
+  }
+
+  function setMode(m){
+    mode = m;
+    bG.classList.toggle("on", m==="greedy");
+    bP.classList.toggle("on", m==="pareto");
+    bG.setAttribute("aria-selected", m==="greedy");
+    bP.setAttribute("aria-selected", m==="pareto");
+    render();
+  }
+  bG.addEventListener("click", function(){ setMode("greedy"); });
+  bP.addEventListener("click", function(){ setMode("pareto"); });
+  render();
+})();
+
+/* ---------- Widget 2: sample-efficiency curves ---------- */
+(function(){
+  var X0=44, X1=448, Y0=200, Y1=22;               // svg plot box
+  var LOGMIN=Math.log10(50), LOGMAX=Math.log10(24000);
+  // performance models (0..1), schematic; endpoints anchored to the story
+  function gepa(r){ // saturates fast, near-plateau by a few hundred rollouts
+    var p = 1 - Math.exp(-r/260); return 0.10 + 0.86*Math.min(1,p);
+  }
+  function grpo(r){ // slow, reaches comparable only near 24000
+    var p = 1 - Math.exp(-r/8200); return 0.10 + 0.80*Math.min(1,p);
+  }
+  function sx(r){ var lg=Math.log10(Math.max(50,r)); return X0 + (lg-LOGMIN)/(LOGMAX-LOGMIN)*(X1-X0); }
+  function sy(v){ return Y0 - v*(Y0-Y1); }
+
+  function pathFor(fn){
+    var d="", first=true;
+    for(var lg=LOGMIN; lg<=LOGMAX+0.001; lg+=0.04){
+      var r=Math.pow(10,lg); var x=sx(r), y=sy(fn(r));
+      d += (first?"M":"L")+x.toFixed(1)+" "+y.toFixed(1); first=false;
+    }
+    return d;
+  }
+  document.getElementById("gepaPath").setAttribute("d", pathFor(gepa));
+  document.getElementById("grpoPath").setAttribute("d", pathFor(grpo));
+
+  var slider=document.getElementById("budget"), out=document.getElementById("budgetOut");
+  var cursor=document.getElementById("cursor"), gDot=document.getElementById("gepaDot"), rDot=document.getElementById("grpoDot");
+  var gV=document.getElementById("gepaV"), gS=document.getElementById("gepaS");
+  var rV=document.getElementById("grpoV"), rS=document.getElementById("grpoS");
+
+  function fmt(n){ return n>=1000 ? (n/1000).toFixed(n<10000?1:0)+"k" : Math.round(n).toString(); }
+  function update(){
+    var r=Math.round(Math.pow(10, parseFloat(slider.value)));
+    out.textContent = fmt(r)+" rollouts";
+    var gv=gepa(r), rv=grpo(r);
+    var x=sx(r);
+    cursor.setAttribute("x1",x); cursor.setAttribute("x2",x);
+    gDot.setAttribute("cx",x); gDot.setAttribute("cy",sy(gv));
+    rDot.setAttribute("cx",x); rDot.setAttribute("cy",sy(rv));
+    gV.textContent=(gv*100).toFixed(0);
+    rV.textContent=(rv*100).toFixed(0);
+    // how many rollouts GRPO needs to match GEPA's current level
+    var target=gv, need=null;
+    for(var lg=LOGMIN; lg<=Math.log10(240000); lg+=0.01){ var rr=Math.pow(10,lg); if(grpo(rr)>=target){ need=rr; break; } }
+    gS.textContent = "reflective · "+fmt(r)+" rollouts";
+    if(need){ rS.textContent = "needs ~"+fmt(need)+" to match GEPA"; }
+    else { rS.textContent = "cannot match at any budget shown"; }
+    setTimeout(postHeight, 30);
+  }
+  slider.addEventListener("input", update);
+  update();
+})();
+</script>
+</body>
+</html>
