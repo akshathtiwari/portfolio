@@ -25,6 +25,13 @@ const STAGE_DWELL_MS = 5200;
 const FINALE_DWELL_MS = 6800;
 const DRIVE_START_MS = 750; // let the boot overlay finish dismissing first
 
+// Autopilot narration order — matches the .walk-stage DOM order below. Driving
+// setStage from the autopilot (not only from the scroll's IntersectionObserver)
+// makes "AXON narrates each stage" reliable even if a device's smooth scroll is
+// janky; the scroll still brings each stage into view. Keep in sync with the
+// stage order in the JSX.
+const DRIVE_STAGES = ["modelcard", "experience", "projects", "knowledge", "volunteer", "finale"];
+
 export default function Walkthrough({
   projects,
   docs,
@@ -96,6 +103,8 @@ export default function Walkthrough({
       }
       const el = stages[i];
       const isFinale = i === stages.length - 1;
+      // Narrate this stage explicitly (reliable), then scroll it into view.
+      if (DRIVE_STAGES[i]) setStage(DRIVE_STAGES[i]);
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       i += 1;
       stepTimer = window.setTimeout(step, isFinale ? FINALE_DWELL_MS : STAGE_DWELL_MS);
