@@ -3,6 +3,11 @@
 // public/blog-embeds) as a full-bleed iframe. The iframe is isolated from the
 // site's styles and scripts, and auto-sizes to its content height via a
 // postMessage the embed sends, so the page scrolls as one document.
+//
+// Theme bridge: the site's light/dark toggle is passed into the iframe so the
+// essay is not stuck in dark. The parent sets the frame src with `?theme=` at
+// load time (no flash) and postMessages the new theme on every toggle; the
+// embed honors both (see the injected theme listener in each blog-embed HTML).
 interface Props {
   src: string;
   title: string;
@@ -13,7 +18,7 @@ const { src, title } = Astro.props;
 <div class="blog-embed">
   <iframe
     id="blogEmbedFrame"
-    src={src}
+    data-src={src}
     title={title}
     loading="eager"
     referrerpolicy="no-referrer"
@@ -29,6 +34,9 @@ const { src, title } = Astro.props;
 <style is:global>
   .blog-embed {
     width: 100%;
+    background: #f7f8fa;
+  }
+  html.dark .blog-embed {
     background: #0d141d;
   }
   .blog-embed iframe {
@@ -42,23 +50,55 @@ const { src, title } = Astro.props;
     margin: 0 auto;
     padding: 3rem 1.5rem;
     text-align: center;
-    color: #cbd5e1;
+    color: #64748b;
     font-family: system-ui, sans-serif;
   }
 </style>
 
 <script is:inline>
   (function () {
-    // Add the height listener once; it finds the current frame on each message,
-    // so it keeps working across View Transitions.
+    function theme() {
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    }
+    // Give this page's frame its real src WITH the current theme baked in, so
+    // the essay renders in the right theme on first paint (no flash).
+    function setSrc() {
+      var f = document.getElementById("blogEmbedFrame");
+      if (f && f.dataset.src && !f.getAttribute("src")) {
+        var base = f.dataset.src;
+        f.src = base + (base.indexOf("?") === -1 ? "?" : "&") + "theme=" + theme();
+      }
+    }
+    function postTheme() {
+      var f = document.getElementById("blogEmbedFrame");
+      if (f && f.contentWindow) {
+        try {
+          f.contentWindow.postMessage({ __blogTheme: theme() }, "*");
+        } catch (e) {
+          /* frame not ready / cross-origin: ignore */
+        }
+      }
+    }
+    setSrc();
     if (!window.__blogEmbedWired) {
       window.__blogEmbedWired = true;
+      // Height messages from the embed (keeps working across View Transitions).
       window.addEventListener("message", function (e) {
         var d = e.data;
         if (d && d.__blogEmbed && typeof d.height === "number") {
           var f = document.getElementById("blogEmbedFrame");
           if (f) f.style.height = Math.max(d.height, 400) + 2 + "px";
         }
+      });
+      // Live theme sync: when the site toggles `.dark`, tell the embed.
+      new MutationObserver(postTheme).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      // A View Transition swaps in a fresh frame: give it a src + theme.
+      document.addEventListener("astro:after-swap", function () {
+        setSrc();
+        postTheme();
       });
     }
   })();

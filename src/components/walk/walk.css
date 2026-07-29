@@ -463,3 +463,42 @@ html.walk-js .walk-stage.in-view .walk-doc {
     transition: none !important;
   }
 }
+
+/* Autopilot control (R: guided walkthrough). Fixed pill, above the dock, shown
+   only while AXON is scroll-driving. Click / scroll / tap hands control back. */
+.walk-autopilot {
+  position: fixed;
+  left: 50%;
+  bottom: 1.15rem;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--w-border);
+  border-radius: 999px;
+  background: var(--w-panel);
+  color: var(--w-text);
+  font-family: var(--w-mono);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  transition: border-color 0.15s, background 0.15s;
+}
+.walk-autopilot:hover { border-color: var(--w-accent); }
+.walk-autopilot:focus-visible { outline: 2px solid var(--w-accent); outline-offset: 2px; }
+.walk-autopilot__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--w-accent);
+  animation: walk-autopilot-pulse 1.15s ease-in-out infinite;
+}
+.walk-autopilot__hint { color: var(--w-dim); }
+@keyframes walk-autopilot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .walk-autopilot__dot { animation: none; }
+}

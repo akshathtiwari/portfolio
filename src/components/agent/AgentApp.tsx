@@ -8,7 +8,7 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { useMachine } from "@xstate/react";
 import { agentMachine, type AgentVisualState } from "../../agent/machine";
-import { agent, chooseMode, addTokens, type Mode } from "../../agent/store";
+import { agent, chooseMode, addTokens, startAutopilot, type Mode } from "../../agent/store";
 import { usePrefersReducedMotion } from "../../agent/useDecoder";
 import AgentEntity from "./AgentEntity";
 import Greeting from "./Greeting";
@@ -170,6 +170,10 @@ export default function AgentApp({ projects = [] }: { projects?: ProjectLite[] }
             .getElementById("main-content")
             ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" })
         );
+      } else if (m === "walkthrough" && !reduced) {
+        // Guided autopilot: hand off to the Walkthrough island, which scroll-
+        // drives the stages. Reduced-motion visitors never take this path.
+        startAutopilot();
       }
     },
     [send, reduced]

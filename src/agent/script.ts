@@ -31,7 +31,7 @@ export const FORK: ForkOption[] = [
 
 // Short line shown in the dock once the visitor is in the site.
 export const DOCK_LINE: Record<string, string> = {
-  walkthrough: "walkthrough armed. scroll to begin.",
+  walkthrough: "autopilot. scroll or tap anytime to take the wheel.",
   manual: "manual mode. I am here if you need me.",
   skip: "minimized. call me with the dock.",
 };

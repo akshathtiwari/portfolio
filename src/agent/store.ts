@@ -1,6 +1,6 @@
 // Global agent state, shared across islands and persisted to localStorage.
 // Satisfies R6 (persisted fork choice) and R9 (context-window meter).
-import { map } from "nanostores";
+import { map, atom } from "nanostores";
 
 export type Mode = "unset" | "walkthrough" | "manual" | "skip";
 
@@ -39,12 +39,34 @@ function load(): AgentState {
 // leak one visitor's state across requests if the site ever moves off static
 // output (it is static today, so this is defensive).
 type AgentMap = ReturnType<typeof map<AgentState>>;
+type BoolAtom = ReturnType<typeof atom<boolean>>;
 const isBrowser = typeof window !== "undefined";
-const g = globalThis as unknown as { __axonAgent?: AgentMap; __axonWired?: boolean };
+const g = globalThis as unknown as {
+  __axonAgent?: AgentMap;
+  __axonAutopilot?: BoolAtom;
+  __axonWired?: boolean;
+};
 
 export const agent: AgentMap = isBrowser
   ? (g.__axonAgent ?? (g.__axonAgent = map<AgentState>(load())))
   : map<AgentState>(load());
+
+// Ephemeral, NOT persisted: whether the agent is currently scroll-driving the
+// walkthrough (R: "Run walkthrough" = guided autopilot). It lives outside the
+// persisted `agent` map so a returning walkthrough visitor does not auto-drive
+// on every reload — it only engages when freshly started this session. Cached
+// on globalThis so the AgentApp island (which starts it) and the Walkthrough
+// island (which performs the drive) share one instance.
+export const autopilot: BoolAtom = isBrowser
+  ? (g.__axonAutopilot ?? (g.__axonAutopilot = atom<boolean>(false)))
+  : atom<boolean>(false);
+
+export function startAutopilot() {
+  autopilot.set(true);
+}
+export function stopAutopilot() {
+  autopilot.set(false);
+}
 
 if (typeof window !== "undefined" && !g.__axonWired) {
   g.__axonWired = true;

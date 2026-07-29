@@ -47,6 +47,9 @@ const personLd = {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Own our theming so the browser's forced/auto dark-mode does not override
+         the site toggle. The inline script below keeps color-scheme in sync. -->
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonical} />
 
@@ -85,6 +88,8 @@ const personLd = {
             ? stored === "dark"
             : window.matchMedia("(prefers-color-scheme: dark)").matches;
           document.documentElement.classList.toggle("dark", dark);
+          // Own color-scheme so the browser's forced dark-mode can't override us.
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
         };
         applyTheme();
         document.addEventListener("astro:after-swap", applyTheme);

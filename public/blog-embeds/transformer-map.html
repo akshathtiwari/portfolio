@@ -1,6 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="color-scheme" content="light dark">
+<script data-theme-bridge>
+/* theme-bridge: follow the host site's light/dark choice, and opt out of
+   the browser's forced dark-mode by owning color-scheme. */
+(function(){
+  function apply(t){
+    var el=document.documentElement;
+    if(t==='light'){el.setAttribute('data-theme','light');el.style.colorScheme='light';}
+    else{el.removeAttribute('data-theme');el.style.colorScheme='dark';}
+  }
+  apply('dark'); // sensible default until a theme signal arrives
+  try{var p=new URLSearchParams(location.search).get('theme');if(p){apply(p);}}catch(e){}
+  window.addEventListener('message',function(e){
+    var d=e.data;
+    if(d&&(d.__blogTheme==='light'||d.__blogTheme==='dark')){apply(d.__blogTheme);}
+  });
+})();
+</script>
+<script>
+/* theme-bridge: follow the host site's light/dark choice */
+(function(){
+  function apply(t){
+    var el=document.documentElement;
+    if(t==='light'){el.setAttribute('data-theme','light');}
+    else{el.removeAttribute('data-theme');}
+  }
+  try{var p=new URLSearchParams(location.search).get('theme');if(p){apply(p);}}catch(e){}
+  window.addEventListener('message',function(e){
+    var d=e.data;
+    if(d&&(d.__blogTheme==='light'||d.__blogTheme==='dark')){apply(d.__blogTheme);}
+  });
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
@@ -140,6 +173,28 @@ h1.title{font-family:var(--f-display); font-weight:700; font-size:clamp(26px,4.4
 
 footer.src{margin-top:44px; padding-top:20px; border-top:1px solid var(--line); font-size:12.5px; color:var(--faint);}
 footer.src b{color:var(--dim);}
+</style>
+<style id="tdb-theme-light">
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#f7f8fa; --bg-2:#eef1f5;
+  --panel:#ffffff; --panel-2:#f2f4f7;
+  --ink:#16181d; --dim:#41495a; --faint:#69728a;
+  --line:#e2e6ec; --line-2:#d6dbe3; --line-soft:#eceff3;
+}
+:root[data-theme="light"] body{ background:var(--bg); color:var(--ink); }
+:root[data-theme="light"] h1,:root[data-theme="light"] h2,
+:root[data-theme="light"] h3,:root[data-theme="light"] h4,
+:root[data-theme="light"] h5,:root[data-theme="light"] h6{
+  color:var(--ink)!important;-webkit-text-fill-color:var(--ink)!important;
+}
+:root[data-theme="light"] p,:root[data-theme="light"] li,
+:root[data-theme="light"] dd,:root[data-theme="light"] dt,
+:root[data-theme="light"] td,:root[data-theme="light"] th,
+:root[data-theme="light"] blockquote,:root[data-theme="light"] figcaption,
+:root[data-theme="light"] label,:root[data-theme="light"] summary{
+  color:var(--ink)!important;
+}
 </style>
 </head>
 <body>
