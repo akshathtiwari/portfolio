@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>SkillOpt: A Learning Rate for Your Prompt — Gradient Descent over Text</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog-embeds/katex/katex.min.css">
+<style>
+  :root{
+    --bg:#0b0d14;
+    --panel:#141724;
+    --panel-2:#1a1e2e;
+    --ink:#eef0f8;
+    --dim:#a4a9be;
+    --faint:#69708a;
+    --accept:#a3e635;      /* accepted edit / improvement */
+    --loss:#ff6b6b;        /* loss / rejected edit */
+    --grad:#61a6ff;        /* the textual gradient / optimizer */
+    --skill:#c8a6ff;       /* the skill document / parameter */
+    --skip:#2a2f42;
+    --line:#242a3c;
+    --line-soft:#1a1f2e;
+    --f-display:'Funnel Display', system-ui, sans-serif;
+    --f-body:'Inter', system-ui, sans-serif;
+    --f-mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:14px;
+    --maxw:770px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.72;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  section{padding:14px 0}
+  h1,h2,h3{font-family:var(--f-display);line-height:1.08;letter-spacing:-.015em}
+  h2{font-size:1.95rem;font-weight:700;margin:2.6rem 0 .5rem}
+  h3{font-size:1.32rem;font-weight:600;margin:1.9rem 0 .3rem;color:#fff}
+  p{margin:.75rem 0}
+  a{color:var(--grad);text-decoration:none;border-bottom:1px solid rgba(97,166,255,.38)}
+  a:hover{border-bottom-color:var(--grad)}
+  strong{color:#fff;font-weight:600}
+  em{color:#e7e9f2}
+  .dim{color:var(--dim)}
+  code{font-family:var(--f-mono);font-size:.86em;background:var(--panel-2);padding:.12em .42em;border-radius:6px;color:#e2e7f3}
+  header.hero{border-bottom:1px solid var(--line);padding:66px 0 36px;background:
+    radial-gradient(1100px 360px at 6% -10%, rgba(163,230,53,.09), transparent 60%),
+    radial-gradient(950px 340px at 99% -4%, rgba(97,166,255,.10), transparent 56%);}
+  .eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--accept);margin:0 0 16px}
+  h1{font-size:3.05rem;font-weight:800;line-height:1.0;margin:0 0 18px;color:#fff}
+  h1 .g{background:linear-gradient(100deg,var(--accept),var(--grad));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .standfirst{font-size:1.2rem;color:var(--dim);max-width:62ch;margin:0;line-height:1.6}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:26px;font-family:var(--f-mono);font-size:.72rem}
+  .chip{border:1px solid var(--line);color:var(--dim);padding:5px 11px;border-radius:100px;background:rgba(255,255,255,.015)}
+  .chip b{color:var(--accept);font-weight:600}
+  .byline{font-family:var(--f-mono);font-size:.72rem;color:var(--faint);margin-top:18px;letter-spacing:.04em}
+  .lede-idea{border:1px solid var(--line);border-left:3px solid var(--accept);background:linear-gradient(180deg,rgba(163,230,53,.06),transparent);border-radius:var(--radius);padding:20px 22px;margin:30px 0}
+  .lede-idea .lbl{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accept);margin-bottom:8px}
+  .lede-idea p{margin:0;font-size:1.12rem;color:#eef0f7}
+  .note{border:1px solid var(--line-soft);background:var(--panel);border-radius:12px;padding:15px 17px;margin:20px 0;font-size:.96rem;color:var(--dim)}
+  .note .t{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:6px}
+  .next{color:var(--faint);font-style:italic;font-family:var(--f-body)}
+  ul,ol{color:var(--ink);padding-left:1.2rem}
+  li{margin:.4rem 0}
+  .katex{color:var(--ink);font-size:1.02em}
+  .mathblock{overflow-x:auto;overflow-y:hidden;margin:1.2rem 0;padding:6px 2px}
+  .metaphor{border:1px solid var(--line);background:linear-gradient(180deg,rgba(200,166,255,.05),rgba(200,166,255,0));border-left:3px solid var(--skill);border-radius:var(--radius);padding:14px 18px;margin:20px 0}
+  .metaphor .t{font-family:var(--f-mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--skill);display:block;margin-bottom:5px}
+  .metaphor p{margin:.3rem 0;font-size:.98rem;color:var(--dim)}
+
+  /* dictionary / mapping table */
+  .maptbl{width:100%;border-collapse:collapse;margin:18px 0;font-size:.92rem}
+  .maptbl th,.maptbl td{border-bottom:1px solid var(--line-soft);padding:9px 12px;text-align:left;vertical-align:top}
+  .maptbl thead th{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:500}
+  .maptbl td.a{color:var(--grad);font-family:var(--f-mono);font-size:.86rem;white-space:nowrap}
+  .maptbl td.b{color:var(--ink)}
+  .maptbl tr:last-child td{border-bottom:0}
+
+  /* widgets */
+  .widget{border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),#101320);border-radius:var(--radius);padding:20px 20px 22px;margin:26px 0}
+  .widget .wt{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+  .widget .wh{font-family:var(--f-display);font-size:1.4rem;font-weight:600;color:#fff;margin:0 0 4px}
+  .widget .wd{font-size:.92rem;color:var(--dim);margin:0 0 16px}
+  .seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:100px;padding:3px;background:var(--panel-2);gap:2px}
+  .seg button{font-family:var(--f-mono);font-size:.73rem;letter-spacing:.02em;color:var(--dim);background:transparent;border:0;padding:7px 14px;border-radius:100px;cursor:pointer;transition:.15s}
+  .seg button.on{color:#0b0d14;font-weight:600;background:var(--grad)}
+  .seg button:focus-visible{outline:2px solid var(--accept);outline-offset:2px}
+  .btn{font-family:var(--f-mono);font-size:.8rem;color:#0b0d14;background:var(--accept);border:0;padding:9px 16px;border-radius:9px;cursor:pointer;font-weight:600;transition:.15s}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:focus-visible{outline:2px solid var(--grad);outline-offset:2px}
+  .btn.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* step-through widget */
+  .stepbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+  .stepbar .lbl{font-family:var(--f-mono);font-size:.72rem;color:var(--faint)}
+  .valpill{margin-left:auto;font-family:var(--f-mono);font-size:.78rem;border:1px solid var(--line);border-radius:100px;padding:6px 13px;color:var(--dim);background:var(--panel-2)}
+  .valpill b{color:var(--accept);font-size:1.02rem}
+  .stagegrid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:680px){.stagegrid{grid-template-columns:1.05fr 1fr}}
+  .doc{border:1px solid var(--line);border-radius:12px;background:#0c0f1a;padding:14px 15px;font-family:var(--f-mono);font-size:.82rem;line-height:1.6}
+  .doc .dh{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--skill);margin-bottom:9px}
+  .doc .ln{padding:3px 8px;border-radius:6px;margin:3px 0;color:#cfd5e6;border-left:2px solid transparent}
+  .doc .ln.add{background:rgba(163,230,53,.12);border-left-color:var(--accept);color:#e8f6c8}
+  .doc .ln.del{background:rgba(255,107,107,.10);border-left-color:var(--loss);color:#f2c7c7;text-decoration:line-through;opacity:.75}
+  .doc .ln.rep{background:rgba(97,166,255,.12);border-left-color:var(--grad);color:#d5e6ff}
+  .doc .empty{color:var(--faint);font-style:italic}
+  .side{display:flex;flex-direction:column;gap:10px}
+  .box{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 14px}
+  .box .bh{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;margin-bottom:6px}
+  .box.trace .bh{color:var(--loss)} .box.grad .bh{color:var(--grad)} .box.gate .bh{color:var(--faint)}
+  .box p{margin:.25rem 0;font-size:.86rem;color:var(--dim);line-height:1.5}
+  .box .verdict{font-family:var(--f-mono);font-size:.82rem;font-weight:600;margin-top:4px}
+  .verdict.ok{color:var(--accept)} .verdict.no{color:var(--loss)}
+  .lr-tag{font-family:var(--f-mono);font-size:.68rem;color:var(--faint)}
+
+  /* lr widget */
+  .lrgrid{display:grid;grid-template-columns:1fr;gap:16px;align-items:center}
+  @media(min-width:640px){.lrgrid{grid-template-columns:1fr 200px}}
+  .readouts{display:grid;gap:10px}
+  .ro{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--panel-2)}
+  .ro .k{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .ro .v{font-size:1.5rem;font-family:var(--f-display);font-weight:700;margin-top:2px;color:var(--accept)}
+  .ro.rej .v{color:var(--loss)}
+  .ro .s{font-size:.75rem;color:var(--dim)}
+
+  /* results table */
+  .rtbl-wrap{overflow-x:auto;margin:18px 0}
+  table.results{border-collapse:collapse;width:100%;min-width:480px;font-size:.9rem}
+  table.results th,table.results td{border-bottom:1px solid var(--line-soft);padding:10px 12px;text-align:right}
+  table.results th:first-child,table.results td:first-child{text-align:left}
+  table.results thead th{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:500}
+  table.results td.metric{color:#e7e9f2}
+  table.results td.base{color:var(--dim)}
+  table.results td.new{color:var(--accept);font-weight:600}
+  table.results td.delta{color:var(--grad);font-family:var(--f-mono);font-size:.82rem}
+  table.results tr:last-child td{border-bottom:0;font-weight:600}
+
+  .algo{border:1px solid var(--line);background:#0a0c13;border-radius:12px;padding:16px 18px;margin:22px 0;font-family:var(--f-mono);font-size:.82rem;line-height:1.7;color:var(--dim);overflow-x:auto}
+  .algo .kw{color:var(--accept)} .algo .cm{color:var(--faint);font-style:italic} .algo b{color:#e7e9f2}
+  .algo .ln{white-space:pre}
+
+  .refs{display:grid;gap:16px;margin-top:12px}
+  .refgrp .gh{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accept);margin-bottom:7px}
+  .refgrp ul{list-style:none;padding:0;margin:0}
+  .refgrp li{margin:.32rem 0;font-size:.92rem;color:var(--dim)}
+  .refgrp li b{color:#e7e9f2;font-weight:600}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0 60px;color:var(--faint);font-size:.86rem}
+  .prov{border:1px solid var(--line-soft);border-radius:12px;background:var(--panel);padding:15px 17px;font-size:.86rem;color:var(--dim)}
+  .prov .t{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:7px}
+  .tag{display:inline-block;font-family:var(--f-mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--faint);vertical-align:middle}
+  .tag.ill{color:var(--accept);border-color:rgba(163,230,53,.4)}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+  @media(max-width:520px){h1{font-size:2.4rem}h2{font-size:1.65rem}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Prompt / Skill Optimization &nbsp;·&nbsp; arXiv 2605.23904 &nbsp;·&nbsp; Microsoft Research</p>
+    <h1>A <span class="g">Learning Rate</span><br>for Your Prompt</h1>
+    <p class="standfirst">You cannot differentiate a block of text. But if you call the skill document a parameter, the task score a loss, and an optimizer model's edits a gradient, you can run a real training loop over language, with a learning rate, a validation gate, and momentum. That is SkillOpt, and it turns a 41.8% agent into an 80.7% one by editing a single file.</p>
+    <div class="meta-row">
+      <span class="chip">skill doc = <b>parameter</b></span>
+      <span class="chip">edit budget = <b>learning rate</b></span>
+      <span class="chip">+<b>23.5</b> pts avg (GPT-5.5)</span>
+      <span class="chip">best-or-tied <b>52/52</b></span>
+    </div>
+    <p class="byline">A deep dive on SkillOpt (Yang et al., 2026, Microsoft Research). The sequel to the <a href="/blog/gepa/">GEPA</a> deep dive &mdash; SkillOpt benchmarks against it.</p>
+  </div>
+</header>
+
+<main class="wrap">
+<!--KATEX-START-->
+
+<div class="lede-idea">
+  <div class="lbl">The one idea</div>
+  <p>Give text optimization the <strong>discipline</strong> of weight optimization. Treat one skill file as the parameter, let an optimizer LLM propose bounded edits as the &ldquo;gradient,&rdquo; cap how many you apply per step (the learning rate), and keep an edit only when a held-out score <em>strictly</em> improves. Everything that makes SGD reproducible &mdash; a step size, a validation check, momentum, a schedule &mdash; ported onto a document.</p>
+</div>
+
+<div class="metaphor">
+  <span class="t">The metaphor we will keep</span>
+  <p>You are perfecting <strong>one recipe card</strong>. Each round you cook for a panel and collect taste scores. A critic tastes the failures and writes specific fixes &mdash; <em>cut the salt, add a resting step</em> &mdash; but you only let a few edits onto the card per round, and you keep an edit only if a <em>fresh</em> panel scores the new card higher. A side notebook records what already flopped so you never re-try it. The card is the prompt; the critic is the optimizer; how many edits you allow per round is the learning rate.</p>
+</div>
+
+<section>
+<h2>Gradient descent, in one line</h2>
+<p>Training a neural network is a loop you already know. You have parameters <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span></span></span></span></span>, a loss <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L(\theta)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span></span></span></span></span> that measures how wrong they are, and you nudge the parameters downhill:</p>
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>θ</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mtext>  </mtext><mo>=</mo><mtext>  </mtext><msub><mi>θ</mi><mi>t</mi></msub><mtext>  </mtext><mo>−</mo><mtext>  </mtext><mi>η</mi><mtext> </mtext><msub><mi mathvariant="normal">∇</mi><mi>θ</mi></msub><mi>L</mi><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\theta_{t+1} \;=\; \theta_{t} \;-\; \eta\, \nabla_\theta L(\theta_t)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.9028em;vertical-align:-0.2083em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2083em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">η</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord">∇</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>
+</div>
+<p>Three ingredients do all the work. The <strong>loss</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi></mrow><annotation encoding="application/x-tex">L</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span></span></span></span></span> says how bad things are. The <strong>gradient</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">∇</mi><mi>θ</mi></msub><mi>L</mi></mrow><annotation encoding="application/x-tex">\nabla_\theta L</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">∇</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">L</span></span></span></span></span> points in the direction that makes the loss <em>worse</em>, so you step the opposite way. And the <strong>learning rate</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi></mrow><annotation encoding="application/x-tex">\eta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">η</span></span></span></span></span> controls how far you move &mdash; too small and you crawl, too large and you overshoot the valley and bounce.</p>
+<p>Now point that machinery at a prompt. The catch is immediate: a prompt is discrete text, not a vector of floats. There is no <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">∇</mi><mi>θ</mi></msub><mi>L</mi></mrow><annotation encoding="application/x-tex">\nabla_\theta L</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">∇</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">L</span></span></span></span></span> to compute, because you cannot take a derivative of &ldquo;You are a helpful assistant.&rdquo; So what plays the role of each ingredient?</p>
+<p class="next">The gradient has to come from somewhere. The trick is old, and it is worth meeting first.</p>
+</section>
+
+<section>
+<h2>The predecessor: a gradient made of words</h2>
+<p>In 2023, ProTeGi (&ldquo;Automatic Prompt Optimization with <em>Gradient Descent</em> and Beam Search,&rdquo; Pryzant et al., EMNLP 2023) made the move that everything since inherits. You cannot differentiate a prompt, but you can ask an LLM to <strong>criticize</strong> it. Run the prompt on a minibatch, collect the failures, and ask a model: <em>what about this prompt caused these mistakes?</em> The natural-language critique it returns is the <strong>textual gradient</strong> &mdash; it points at what is wrong. Then you &ldquo;step&rdquo; by editing the prompt in the <em>opposite semantic direction</em>: rewrite it to fix the criticism. ProTeGi wrapped this in a beam search over candidate prompts and reported gains up to 31%.</p>
+<p>That is the conceptual unlock. But there is a gap between &ldquo;an LLM can criticize a prompt&rdquo; and &ldquo;this reliably converges.&rdquo; Ordinary SGD is reproducible because of a lot of unglamorous machinery: a controlled step size, a held-out check, momentum, a schedule. Strip that away and text optimization becomes a slot machine.</p>
+<p class="next">Which is exactly the failure SkillOpt is built around.</p>
+</section>
+
+<section>
+<h2>The naive loop, and why it drifts</h2>
+<p>The obvious thing &mdash; and what many &ldquo;self-improving agent&rdquo; setups do &mdash; is to let the agent revise its own instructions in a loop: run, ask it to rewrite its skill, repeat. SkillOpt's framing of why this is not enough is blunt: hand-crafted, one-shot, or loosely self-revised skills are <em>&ldquo;none of which reliably improves over its starting point under feedback.&rdquo;</em> Revisions regress as often as they help, because nothing forces each step to be an improvement, and nothing stops the fifth rewrite from undoing the second.</p>
+<p>There is also a subtler failure that motivates the whole design, and you can feel it in the recipe: if the critic hands you <em>twenty</em> edits and you apply them all at once, then when the new card scores worse you have no idea which edit did the damage &mdash; and when it scores better you have learned nothing transferable. Big steps in a discrete space are unattributable. That is an overshooting learning rate, and it is the thing SkillOpt's edit budget exists to control.</p>
+<p class="next">So SkillOpt keeps the textual gradient and wraps it in optimizer discipline. Four pieces.</p>
+</section>
+
+<section>
+<h2>Piece one: the parameter, the loss, the gradient</h2>
+<p>The parameter is a single <strong>skill document</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span></span> &mdash; a short natural-language instruction file, the frozen agent's external state. Not a throwaway prompt; a persistent artifact you ship. The loss is one minus the task score:</p>
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>L</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mn>1</mn><mo>−</mo><mi>r</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo separator="true">,</mo><mspace width="2em"/><mi>r</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mfrac><mn>1</mn><mrow><mi mathvariant="normal">∣</mi><mi mathvariant="script">D</mi><mi mathvariant="normal">∣</mi></mrow></mfrac><munder><mo>∑</mo><mrow><mi>x</mi><mo>∈</mo><mi mathvariant="script">D</mi></mrow></munder><mi>r</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">;</mo><mi>x</mi><mo stretchy="false">)</mo><mtext>  </mtext><mo>∈</mo><mtext>  </mtext><mo stretchy="false">[</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">L(s) \;=\; 1 - r(s), \qquad r(s) \;=\; \frac{1}{|\mathcal{D}|}\sum_{x \in \mathcal{D}} r(s; x) \;\in\; [0,1]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.6431em;vertical-align:-1.3217em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">∣</span><span class="mord mathcal" style="margin-right:0.0278em;">D</span><span class="mord">∣</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.05em;"><span style="top:-1.8557em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mrel mtight">∈</span><span class="mord mathcal mtight" style="margin-right:0.0278em;">D</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.3217em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">;</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">]</span></span></span></span></span>
+</div>
+<p>where <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">;</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">r(s; x)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">;</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">x</span><span class="mclose">)</span></span></span></span></span> is the harness score of running the agent with skill <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span></span> on task <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span></span> &mdash; did the spreadsheet come out right, was the question answered. The <strong>gradient</strong> is a separate optimizer LLM: it reads full execution traces, splits them into successes and failures, and emits <strong>bounded edits</strong> on the document &mdash; <em>add</em> a line, <em>delete</em> a line, <em>replace</em> a line. Failures produce corrections; successes produce edits that <em>preserve</em> what already works, so the step does not trample a good habit while fixing a bad one.</p>
+
+<table class="maptbl">
+  <thead><tr><th>Gradient descent</th><th>SkillOpt</th></tr></thead>
+  <tbody>
+    <tr><td class="a">parameter &theta;</td><td class="b">the skill document <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span></span> (one text file)</td></tr>
+    <tr><td class="a">loss L(&theta;)</td><td class="b"><span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>r</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">1 - r(s)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span></span></span></span></span>, one minus the harness score</td></tr>
+    <tr><td class="a">gradient &nabla;L</td><td class="b">optimizer LLM's add / delete / replace edits from traces</td></tr>
+    <tr><td class="a">learning rate &eta;</td><td class="b">edit budget <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">L_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span>: max edits applied at step <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi></mrow><annotation encoding="application/x-tex">t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span></span></span></span></span></td></tr>
+    <tr><td class="a">momentum</td><td class="b">rejected-edit buffer (negative memory)</td></tr>
+    <tr><td class="a">validation</td><td class="b">strict gate on held-out split <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="script">D</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mathcal{D}_{sel}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span></td></tr>
+  </tbody>
+</table>
+<p class="next">Now the two pieces that turn a critique into a stable step: how far to move, and whether to keep the move.</p>
+</section>
+
+<section>
+<h2>Piece two: the learning rate is an edit budget</h2>
+<p>Here is SkillOpt's cleanest idea. The learning-rate analogue is the <strong>edit budget</strong> <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">L_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span> &mdash; the maximum number of edits applied at step <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi></mrow><annotation encoding="application/x-tex">t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span></span></span></span></span>. The optimizer may propose many; they are merged (failure-fixes first, then success-preserving), ranked by expected utility, and <strong>clipped to the top <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">L_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span></strong>. A small budget means each step is a small, attributable move. A large budget means a big, unattributable leap that the validation gate tends to reject wholesale.</p>
+<p>And because it is a learning rate, it gets a <strong>schedule</strong>. SkillOpt supports constant, linear, cosine, and autonomous schedules; the default is a <em>cosine decay from <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>t</mi></msub><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">L_t = 4</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">4</span></span></span></span></span> down to a floor of <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>t</mi></msub><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">L_t = 2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span></span></em> &mdash; bold edits early when the skill is empty, careful edits late when you are polishing. Exactly the shape a deep-learning practitioner reaches for. The widget below lets you feel why the middle path wins.</p>
+
+<div class="widget" id="lrw">
+  <div class="wt">Widget 1 · interactive <span class="tag ill">Illustrative</span></div>
+  <div class="wh">Too big a step overshoots &mdash; even in text</div>
+  <div class="wd">Three ways to spend your edit budget over a fixed number of steps. Watch the final accuracy and the rejection rate. Curves are schematic; the start (41.8) and the cosine endpoint (80.7) are anchored to SkillOpt's measured SpreadsheetBench run on GPT-5.5.</div>
+  <div class="seg" role="tablist" aria-label="Learning-rate schedule">
+    <button id="lrLow" role="tab" aria-selected="false">Budget = 1 (too small)</button>
+    <button id="lrHigh" role="tab" aria-selected="false">Budget = 8 (overshoot)</button>
+    <button id="lrCos" class="on" role="tab" aria-selected="true">Cosine 4&rarr;2 (default)</button>
+  </div>
+  <div class="lrgrid" style="margin-top:16px">
+    <div>
+      <svg id="lrsvg" viewBox="0 0 460 230" width="100%" role="img" aria-label="Accuracy vs optimization step for three learning-rate schedules">
+        <line x1="42" y1="196" x2="448" y2="196" stroke="#242a3c"/>
+        <line x1="42" y1="14" x2="42" y2="196" stroke="#242a3c"/>
+        <path id="lrPath" fill="none" stroke="#a3e635" stroke-width="2.6"/>
+        <g id="lrDots"></g>
+        <text x="44" y="12" fill="#69708a" font-size="9" font-family="'JetBrains Mono',monospace">accuracy %</text>
+        <text x="392" y="212" fill="#69708a" font-size="9" font-family="'JetBrains Mono',monospace">steps &rarr;</text>
+      </svg>
+    </div>
+    <div class="readouts">
+      <div class="ro"><div class="k">Final accuracy</div><div class="v" id="lrFinal">&mdash;</div><div class="s" id="lrFinalS"></div></div>
+      <div class="ro rej"><div class="k">Edits rejected</div><div class="v" id="lrRej">&mdash;</div><div class="s" id="lrRejS"></div></div>
+    </div>
+  </div>
+</div>
+<p>A budget of 1 climbs smoothly but crawls &mdash; it runs out of steps before it arrives. A budget of 8 lurches: most of its oversized batches fail the validation gate and get thrown away, so it wastes moves and stalls. The cosine schedule spends big early and small late, and reaches the top. Same lesson as tuning <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi></mrow><annotation encoding="application/x-tex">\eta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">η</span></span></span></span></span> for SGD, now visible on a text file.</p>
+<p class="next">But notice what did the rejecting. That gate is the second half of the discipline.</p>
+</section>
+
+<section>
+<h2>Piece three: the validation gate</h2>
+<p>Every candidate skill <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>s</mi><mo>~</mo></mover></mrow><annotation encoding="application/x-tex">\tilde{s}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6679em;"></span><span class="mord katex-accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">s</span></span><span style="top:-3.35em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">~</span></span></span></span></span></span></span></span></span></span></span> is scored on a held-out selection split <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="script">D</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mathcal{D}_{sel}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span> &mdash; a <em>fresh</em> tasting panel, not the tasks the gradient was computed on. The acceptance rule is strict:</p>
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>accept </mtext><mover accent="true"><mi>s</mi><mo>~</mo></mover><mtext>  </mtext><mo>⟺</mo><mtext>  </mtext><msub><mi>r</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow></msub><mo stretchy="false">(</mo><mover accent="true"><mi>s</mi><mo>~</mo></mover><mo stretchy="false">)</mo><mtext>  </mtext><mo>&gt;</mo><mtext>  </mtext><msub><mi>r</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>s</mi><mrow><mi>c</mi><mi>u</mi><mi>r</mi></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\text{accept } \tilde{s} \iff r_{sel}(\tilde{s}) \;&gt;\; r_{sel}(s_{cur})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8623em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">accept </span></span><span class="mord katex-accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">s</span></span><span style="top:-3.35em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">~</span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">⟺</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord katex-accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">s</span></span><span style="top:-3.35em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">~</span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">u</span><span class="mord mathnormal mtight" style="margin-right:0.0278em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>
+</div>
+<p>Strictly greater &mdash; ties are rejected, so the skill never drifts sideways on noise. If the candidate also beats the best score ever seen, it is saved as <code>best_skill.md</code>. If it fails, it is discarded and its edits drop into a <strong>rejected-edit buffer</strong> that is fed back to the optimizer as negative evidence: <em>we tried this, it did not help, do not propose it again.</em> That buffer is SkillOpt's momentum &mdash; it keeps the search from re-proposing the same dead ends and gives each step a memory of the last.</p>
+<p>The formal objective is just &ldquo;pick the candidate that maximizes held-out score,&rdquo; with the loop above generating the candidate set <span class="katex-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">C</mi><mo stretchy="false">(</mo><msub><mi mathvariant="script">D</mi><mrow><mi>t</mi><mi>r</mi></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{C}(\mathcal{D}_{tr})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathcal" style="margin-right:0.0583em;">C</span><span class="mopen">(</span><span class="mord"><span class="mord mathcal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.0278em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span>:</p>
+<div class="mathblock">
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mi>s</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow><mo lspace="0em" rspace="0em">∗</mo></msubsup><mtext>  </mtext><mo>=</mo><mtext>  </mtext><mi>arg</mi><mo>⁡</mo><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mi>s</mi><mtext> </mtext><mo>∈</mo><mtext> </mtext><mi mathvariant="script">C</mi><mo stretchy="false">(</mo><msub><mi mathvariant="script">D</mi><mrow><mi>t</mi><mi>r</mi></mrow></msub><mo stretchy="false">)</mo></mrow></munder><mtext>  </mtext><mfrac><mn>1</mn><mrow><mi mathvariant="normal">∣</mi><msub><mi mathvariant="script">D</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow></msub><mi mathvariant="normal">∣</mi></mrow></mfrac><munder><mo>∑</mo><mrow><mi>x</mi><mo>∈</mo><msub><mi mathvariant="script">D</mi><mrow><mi>s</mi><mi>e</mi><mi>l</mi></mrow></msub></mrow></munder><mi>r</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">;</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">s^{*}_{sel} \;=\; \arg\max_{s \,\in\, \mathcal{C}(\mathcal{D}_{tr})} \; \frac{1}{|\mathcal{D}_{sel}|} \sum_{x \in \mathcal{D}_{sel}} r(s; x)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.9857em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7387em;"><span style="top:-2.453em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∗</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.7216em;vertical-align:-1.4002em;"></span><span class="mop">ar<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.309em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mspace mtight" style="margin-right:0.1952em;"></span><span class="mrel mtight">∈</span><span class="mspace mtight" style="margin-right:0.1952em;"></span><span class="mord mathcal mtight" style="margin-right:0.0583em;">C</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathcal mtight" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2963em;"><span style="top:-2.357em;margin-left:-0.0278em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="katex-sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.0278em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.966em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">∣</span><span class="mord"><span class="mord mathcal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.05em;"><span style="top:-1.8557em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mrel mtight">∈</span><span class="mord mtight"><span class="mord mathcal mtight" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0278em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="katex-sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">se</span><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.4002em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">;</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">x</span><span class="mclose">)</span></span></span></span></span>
+</div>
+<p>This monotone-by-construction gate is why SkillOpt <em>reliably improves over its starting point</em> &mdash; the property the naive self-revision loop could not promise.</p>
+</section>
+
+<section>
+<h2>One step, stepped through</h2>
+<p>Enough prose. Below is a single skill document under optimization. Press <strong>Run next step</strong> to execute the loop once: run the agent, grade it, let the optimizer propose add / delete / replace edits (the textual gradient), then apply the validation gate. Accepted edits turn <span style="color:var(--accept)">green</span> and stick; a rejected step is <span style="color:var(--loss)">rolled back</span> and its edits go to the buffer. Watch the held-out score ratchet &mdash; only upward.</p>
+
+<div class="widget" id="sw">
+  <div class="wt">Widget 2 · interactive <span class="tag ill">Illustrative trajectory</span></div>
+  <div class="wh">The SkillOpt loop, one step at a time</div>
+  <div class="wd">A scripted SpreadsheetBench-style run. Endpoints (41.8 &rarr; 80.7) are anchored to the paper; the intermediate steps and edit text are illustrative, chosen to show the mechanism including a rejection.</div>
+  <div class="stepbar">
+    <button class="btn" id="swStep">Run next step</button>
+    <button class="btn ghost" id="swReset">Reset</button>
+    <span class="lr-tag" id="swLr">step 0 · budget L=4</span>
+    <span class="valpill">held-out&nbsp; <b id="swVal">41.8</b>%</span>
+  </div>
+  <div class="stagegrid">
+    <div class="doc" id="swDoc" aria-live="polite">
+      <div class="dh">skill.md &mdash; the parameter</div>
+      <div class="empty" id="swEmpty">(empty skill &mdash; the agent runs on the base model alone)</div>
+    </div>
+    <div class="side">
+      <div class="box trace"><div class="bh">1 · rollout &amp; loss</div><p id="swTrace">Press &ldquo;Run next step&rdquo; to execute the agent on a batch and grade it.</p></div>
+      <div class="box grad"><div class="bh">2 · textual gradient</div><p id="swGrad">&mdash;</p></div>
+      <div class="box gate"><div class="bh">3 · validation gate</div><p id="swGate">&mdash;</p><div class="verdict" id="swVerdict"></div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section>
+<h2>Piece four: the slow update and meta-memory</h2>
+<p>Everything so far is the <strong>fast update path</strong> &mdash; per-step edits inside an epoch. On top of it SkillOpt runs a <strong>slow update path</strong> once per epoch (from the second epoch on): it re-samples the same tasks under the skill as it was at the epoch's start versus its end, sorts the outcomes into <em>improvements, regressions, persistent failures, and stable successes</em>, and writes <em>longitudinal guidance</em> into a <strong>protected region</strong> of the document that step-level edits are not allowed to overwrite. It is the head chef's weekly review, kept on a part of the card the line cooks cannot touch.</p>
+<p>Alongside it sits a <strong>meta-skill memory</strong>: an optimizer-side summary of which kinds of edits have tended to work or fail, prepended to future reflection prompts. Crucially it lives with the optimizer, never in the shipped skill &mdash; so it costs nothing at deployment. In fact the whole apparatus adds <strong>zero inference-time model calls</strong> at deploy: the optimizer is a training-time tool, and what ships is just a short text file the agent reads.</p>
+
+<div class="algo" aria-label="SkillOpt training loop, pseudocode">
+<div class="ln"><span class="cm"># SkillOpt: gradient descent over a skill document</span></div>
+<div class="ln">best &larr; s0;  cur &larr; s0            <span class="cm"># start from empty / seed skill</span></div>
+<div class="ln"><span class="kw">for</span> epoch = 1 &hellip; E:</div>
+<div class="ln">  <span class="kw">for</span> each step t in epoch:            <span class="cm"># FAST path</span></div>
+<div class="ln">    traces &larr; <span class="kw">run</span>(cur, rollout batch)   <span class="cm"># frozen agent; score r</span></div>
+<div class="ln">    edits &larr; <span class="kw">optimizer</span>(success/failure traces, buffer)  <span class="cm"># textual gradient</span></div>
+<div class="ln">    edits &larr; rank(edits)[: L_t]         <span class="cm"># learning rate = edit budget</span></div>
+<div class="ln">    s&tilde; &larr; <span class="kw">apply</span>(cur, edits)</div>
+<div class="ln">    <span class="kw">if</span> r_sel(s&tilde;) &gt; r_sel(cur):          <span class="cm"># strict validation gate</span></div>
+<div class="ln">        cur &larr; s&tilde;;  <span class="kw">if</span> r_sel(s&tilde;) &gt; r_sel(best): best &larr; s&tilde;</div>
+<div class="ln">    <span class="kw">else</span>: buffer &larr; buffer &cup; edits    <span class="cm"># momentum: remember dead ends</span></div>
+<div class="ln">  <span class="kw">if</span> epoch &ge; 2:                       <span class="cm"># SLOW path</span></div>
+<div class="ln">    guidance &larr; reflect(start-of-epoch vs end-of-epoch skill)</div>
+<div class="ln">    cur &larr; write_protected(cur, guidance); gate as above</div>
+<div class="ln"><span class="kw">return</span> best   <span class="cm"># best_skill.md — zero extra inference cost at deploy</span></div>
+</div>
+</section>
+
+<section>
+<h2>What it actually buys you</h2>
+<p>The headline run: on <strong>GPT-5.5 in direct chat</strong>, adding a SkillOpt-trained skill lifts the six-benchmark average by <strong>+23.5 points</strong>. Inside agentic harnesses the gain holds or grows &mdash; <strong>+24.8</strong> points average inside Codex, <strong>+19.1</strong> inside Claude Code. Across all 6 benchmarks &times; 7 models &times; 3 harnesses, SkillOpt is <strong>best or tied-best on all 52</strong> evaluated cells, beating every per-cell competitor including human-written skills, one-shot LLM skills, TextGrad, and GEPA.</p>
+
+<div class="rtbl-wrap">
+<table class="results">
+  <thead><tr><th>Benchmark (GPT-5.5, direct chat)</th><th>No skill</th><th>SkillOpt</th><th>&Delta;</th></tr></thead>
+  <tbody>
+    <tr><td class="metric">SearchQA</td><td class="base">77.7</td><td class="new">87.3</td><td class="delta">+9.6</td></tr>
+    <tr><td class="metric">SpreadsheetBench</td><td class="base">41.8</td><td class="new">80.7</td><td class="delta">+38.9</td></tr>
+    <tr><td class="metric">OfficeQA</td><td class="base">33.1</td><td class="new">72.1</td><td class="delta">+39.0</td></tr>
+    <tr><td class="metric">DocVQA</td><td class="base">78.8</td><td class="new">91.2</td><td class="delta">+12.4</td></tr>
+    <tr><td class="metric">LiveMath</td><td class="base">37.6</td><td class="new">66.9</td><td class="delta">+29.3</td></tr>
+    <tr><td class="metric">ALFWorld</td><td class="base">83.6</td><td class="new">95.5</td><td class="delta">+11.9</td></tr>
+    <tr><td class="metric">Average</td><td class="base">&mdash;</td><td class="new">&mdash;</td><td class="delta">+23.5</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Two details make the numbers more than a leaderboard. First, the winning skills stay <strong>tiny</strong>: 379&ndash;1,995 tokens after only 1&ndash;4 accepted edits &mdash; short enough to read, audit, and paste. Second, they <strong>transfer</strong>: an artifact optimized on one model retains value moved across model scales, between the Codex and Claude Code harnesses, and onto a nearby math benchmark, with no re-optimization. The disciplined loop produces a skill, not an overfit incantation.</p>
+</section>
+
+<section>
+<h2>Where it costs you, and where the analogy leaks</h2>
+<ul>
+  <li><strong>The &ldquo;gradient&rdquo; is a metaphor, not calculus.</strong> Nothing is differentiated. The gradient is an LLM's guess at a good edit, and the learning rate is a heuristic count of edits. The framing is genuinely productive &mdash; it imports schedules, momentum, and validation &mdash; but it is an analogy, and its guarantees are empirical, not mathematical.</li>
+  <li><strong>It raises floors more than ceilings.</strong> The biggest jumps land where the base model was weakest (SpreadsheetBench 41.8, OfficeQA 33.1 gain roughly +39). On already-strong tasks (ALFWorld 83.6, DocVQA 78.8) the gain is a more modest +12. SkillOpt fixes what a model is bad at; it does not manufacture new peak ability.</li>
+  <li><strong>&ldquo;Zero inference cost&rdquo; is at deployment only.</strong> Training spends many scored rollouts, a strong optimizer model, and repeated validation passes. The saving is that none of that rides along at serve time &mdash; but the optimization itself is not cheap.</li>
+  <li><strong>It needs a scorable task.</strong> The loop descends a measured signal; where success cannot be scored by a harness, there is no loss to minimize and nothing for the gradient to point at.</li>
+  <li><strong>Read the results as the authors' own suite.</strong> &ldquo;Best-or-tied on 52/52&rdquo; counts ties, on benchmarks and baselines the authors selected, in a 2026 paper this write-up has not independently reproduced. Strong, but not yet weathered by outside replication.</li>
+</ul>
+</section>
+
+<section>
+<h2>Where it sits</h2>
+<p>SkillOpt is one point on a fast-moving line. ProTeGi and TextGrad established the textual gradient; <a href="/blog/gepa/">GEPA</a> added reflection and a Pareto frontier over prompts; SkillOpt's bet is that the missing ingredient was not a cleverer gradient but <em>optimizer hygiene</em> &mdash; a controllable step size, a strict gate, momentum, a schedule &mdash; applied to a single persistent skill file. The result is an artifact you can read and move, produced by a loop that provably never regresses on its validation split.</p>
+<p>The open edges are the interesting ones: the gate is strict and therefore conservative, so it can stall in noisy or plateaued regions; the &ldquo;learning rate&rdquo; is still a hand-set budget rather than something adapted from the loss surface; and the whole thing presumes a task you can score. But the reframing is the lasting part. Once a prompt is a parameter, everything we know about training parameters &mdash; schedules, momentum, early stopping, regularization &mdash; becomes fair game for text.</p>
+</section>
+
+<section>
+<h2>Further reading</h2>
+<div class="refs">
+  <div class="refgrp">
+    <div class="gh">Primary source</div>
+    <ul>
+      <li><b><a href="https://arxiv.org/abs/2605.23904">SkillOpt: Executive Strategy for Self-Evolving Agent Skills</a></b> &mdash; Yang et al., Microsoft Research, arXiv 2605.23904. Abstract, claims, version history.</li>
+      <li><b><a href="https://arxiv.org/html/2605.23904">Full HTML text</a></b> &mdash; Algorithm 1, the loss/objective equations, the learning-rate schedules, and the full result tables.</li>
+      <li><b><a href="https://www.microsoft.com/en-us/research/publication/skillopt-executive-strategy-for-self-evolving-agent-skills/">Microsoft Research page</a></b> &mdash; the official landing page; links to code at <code>aka.ms/skillopt</code>.</li>
+    </ul>
+  </div>
+  <div class="refgrp">
+    <div class="gh">Predecessors</div>
+    <ul>
+      <li><b><a href="https://arxiv.org/abs/2305.03495">Automatic Prompt Optimization with &ldquo;Gradient Descent&rdquo; and Beam Search</a></b> &mdash; Pryzant et al., EMNLP 2023 (ProTeGi). The origin of the textual gradient.</li>
+      <li><b>TextGrad</b> &mdash; backpropagation through text via LLM feedback; the generalization ProTeGi's idea grew into. (Named; find via arXiv.)</li>
+      <li><b><a href="/blog/gepa/">GEPA</a></b> &mdash; my companion deep dive on reflective, Pareto-based prompt evolution, one of SkillOpt's baselines.</li>
+    </ul>
+  </div>
+  <div class="refgrp">
+    <div class="gh">Explainer</div>
+    <ul>
+      <li><b><a href="https://aipapersacademy.com/skillopt/">AI Papers Academy: SkillOpt</a></b> &mdash; a readable walkthrough of the fast/slow update paths and the headline results.</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+<div class="prov">
+  <span class="t">Honesty note</span>
+  Every result quoted (SpreadsheetBench 41.8 &rarr; 80.7; the six-benchmark deltas; the +23.5 / +24.8 / +19.1 harness averages; best-or-tied 52/52; 379&ndash;1,995-token skills; the default cosine 4&rarr;2 budget) is <strong>measured</strong>, from SkillOpt (arXiv 2605.23904), a 2026 paper this write-up has not independently reproduced. ProTeGi's &ldquo;up to 31%&rdquo; is from that separate 2023 paper. Both widgets are <span class="tag ill">illustrative</span>: their curves and the step-through's intermediate edits are schematic, with only the endpoints anchored to the paper's numbers. The gradient-descent mapping is an analogy the paper draws deliberately; no actual differentiation occurs. Model names (GPT-5.5, etc.) are as the paper reports them.
+</div>
+
+<!--KATEX-END-->
+</main>
+
+<footer class="wrap">
+  SkillOpt &mdash; treating a prompt as a trainable parameter. Deep dive built from arXiv 2605.23904 and the ProTeGi lineage. Interactive, self-contained, math pre-rendered. Companion to the <a href="/blog/gepa/">GEPA</a> deep dive.
+</footer>
+
+<script>
+/* ---- iframe auto-resize contract: define postHeight BEFORE anything calls it ---- */
+function H(){ return Math.max(document.body.scrollHeight, document.body.offsetHeight); }
+function postHeight(){ try{ parent.postMessage({__blogEmbed:1, height:H()}, "*"); }catch(e){} }
+window.postHeight = postHeight;
+window.addEventListener("load", postHeight);
+window.addEventListener("resize", postHeight);
+if(window.ResizeObserver){ try{ new ResizeObserver(function(){ postHeight(); }).observe(document.body); }catch(e){} }
+[200,700,1500,3000].forEach(function(d){ setTimeout(postHeight, d); });
+
+/* ---------- Widget 1: learning rate as edit budget ---------- */
+(function(){
+  var X0=42, X1=448, Y0=196, Y1=16, STEPS=14;
+  var start=41.8, top=80.7;
+  // three schedules -> per-step accuracy trajectory + rejection count (illustrative)
+  function traj(mode){
+    var acc=start, rej=0, pts=[acc];
+    for(var t=1;t<=STEPS;t++){
+      var gain=0, reject=false;
+      if(mode==="low"){ gain=(top-start)/26; }               // small steady steps, too slow to arrive
+      else if(mode==="high"){
+        // big batches: often rejected (no progress), occasionally a jump
+        if(t%3===0){ gain=(top-start)/9; } else { gain=0.4; reject=true; rej++; }
+      } else { // cosine 4->2: strong early, gentle late, reaches top
+        var frac=t/STEPS; var w=(1+Math.cos(Math.PI*frac))/2;  // 1->0
+        gain=(top-acc)*(0.16+0.20*w);
+      }
+      acc=Math.min(top, acc+gain);
+      pts.push(acc);
+    }
+    return {pts:pts, rej:rej, final:acc};
+  }
+  function sx(i){ return X0 + i/STEPS*(X1-X0); }
+  function sy(v){ return Y0 - (v-30)/(100-30)*(Y0-Y1); }      // y axis 30..100
+  var svgPath=document.getElementById("lrPath"), dots=document.getElementById("lrDots");
+  var fEl=document.getElementById("lrFinal"), fS=document.getElementById("lrFinalS");
+  var rEl=document.getElementById("lrRej"), rS=document.getElementById("lrRejS");
+  var bLow=document.getElementById("lrLow"), bHigh=document.getElementById("lrHigh"), bCos=document.getElementById("lrCos");
+  var colors={low:"#61a6ff", high:"#ff6b6b", cos:"#a3e635"};
+  var mode="cos";
+  function render(){
+    var r=traj(mode);
+    var d="", i;
+    for(i=0;i<r.pts.length;i++){ d+=(i?"L":"M")+sx(i).toFixed(1)+" "+sy(r.pts[i]).toFixed(1); }
+    svgPath.setAttribute("d", d);
+    svgPath.setAttribute("stroke", colors[mode]);
+    dots.innerHTML="";
+    for(i=0;i<r.pts.length;i++){
+      var c=document.createElementNS("http://www.w3.org/2000/svg","circle");
+      c.setAttribute("cx",sx(i)); c.setAttribute("cy",sy(r.pts[i])); c.setAttribute("r","2.4");
+      c.setAttribute("fill",colors[mode]); dots.appendChild(c);
+    }
+    fEl.textContent=r.final.toFixed(1)+"%";
+    fEl.style.color=colors[mode];
+    fS.textContent = mode==="low" ? "smooth, but ran out of steps" : mode==="high" ? "lurching, never settled" : "reached the anchored ceiling";
+    rEl.textContent=r.rej;
+    rS.textContent = mode==="high" ? "oversized batches fail the gate" : mode==="low" ? "small steps rarely rejected" : "few rejections, mostly accepted";
+    [ [bLow,"low"],[bHigh,"high"],[bCos,"cos"] ].forEach(function(p){
+      var on=p[1]===mode; p[0].classList.toggle("on",on); p[0].setAttribute("aria-selected",on);
+      p[0].style.background = on ? colors[mode] : "";
+    });
+    setTimeout(postHeight,40);
+  }
+  bLow.addEventListener("click",function(){mode="low";render();});
+  bHigh.addEventListener("click",function(){mode="high";render();});
+  bCos.addEventListener("click",function(){mode="cos";render();});
+  render();
+})();
+
+/* ---------- Widget 2: one step, stepped through ---------- */
+(function(){
+  // scripted trajectory; endpoints 41.8 -> 80.7 anchored, intermediates illustrative
+  var SEED=[]; // empty skill
+  var steps=[
+    {lr:4, trace:"Batch score 41.8%. Failure: agent wrote the result into the wrong cell range on 6/10 sheets.",
+     grad:"ADD a rule pinning down the target range before writing.",
+     op:"add", text:"Confirm the exact target cell range before writing any value.",
+     accept:true, val:54.0, gate:"Held-out score 41.8 -> 54.0. Strictly higher."},
+    {lr:4, trace:"Failure: agent stops after the first matching row; multi-row updates are incomplete.",
+     grad:"ADD an instruction to iterate over all matching rows.",
+     op:"add", text:"Apply the operation to every matching row, not just the first.",
+     accept:true, val:63.5, gate:"Held-out score 54.0 -> 63.5. Accepted."},
+    {lr:8, trace:"Optimizer over-eager: proposes 8 sweeping rewrites at once (verbosity, formatting, tone, examples...).",
+     grad:"REPLACE most of the skill with a long restructured version (budget exceeded, clipped, still large).",
+     op:"reject", text:"(8 stacked edits — unattributable batch)",
+     accept:false, val:63.5, gate:"Held-out score 61.9 < 63.5. Rejected, rolled back; edits sent to the buffer."},
+    {lr:4, trace:"Failure: off-by-one on header rows; agent counts the header as data.",
+     grad:"ADD a guard for header rows.",
+     op:"add", text:"Treat row 1 as a header unless told otherwise; index data from row 2.",
+     accept:true, val:71.8, gate:"Held-out score 63.5 -> 71.8. Accepted."},
+    {lr:3, trace:"Redundancy: two lines now say the same thing about ranges; one is vaguer.",
+     grad:"DELETE the weaker duplicate line.",
+     op:"del", text:"Confirm the exact target cell range before writing any value.",
+     accept:true, val:76.4, gate:"Held-out score 71.8 -> 76.4. Accepted (shorter and better)."},
+    {lr:2, trace:"Failure: numeric formatting drift (currency vs plain number).",
+     grad:"ADD a formatting-preservation rule.",
+     op:"add", text:"Preserve each cell's existing number format when writing.",
+     accept:true, val:80.7, gate:"Held-out score 76.4 -> 80.7. Accepted — matches the paper's endpoint."}
+  ];
+  var doc=[]; // array of {t:text, cls:''}
+  var i=0;
+  var elDoc=document.getElementById("swDoc"), elEmpty=document.getElementById("swEmpty");
+  var elTrace=document.getElementById("swTrace"), elGrad=document.getElementById("swGrad");
+  var elGate=document.getElementById("swGate"), elVerdict=document.getElementById("swVerdict");
+  var elVal=document.getElementById("swVal"), elLr=document.getElementById("swLr");
+  var bStep=document.getElementById("swStep"), bReset=document.getElementById("swReset");
+
+  function paintDoc(pending){
+    // remove old highlight classes except structural
+    var html='<div class="dh">skill.md &mdash; the parameter</div>';
+    if(doc.length===0 && !pending){ html+='<div class="empty">(empty skill &mdash; the agent runs on the base model alone)</div>'; }
+    doc.forEach(function(l){ html+='<div class="ln '+(l.cls||'')+'">'+ l.t +'</div>'; });
+    if(pending){ html+=pending; }
+    elDoc.innerHTML=html;
+  }
+  function clearHi(){ doc.forEach(function(l){ l.cls=""; }); }
+
+  function step(){
+    if(i>=steps.length){ return; }
+    var s=steps[i];
+    clearHi();
+    elLr.textContent="step "+(i+1)+" · budget L="+s.lr;
+    elTrace.textContent=s.trace;
+    elGrad.textContent=s.grad+"  →  \""+s.text+"\"";
+    if(s.accept){
+      if(s.op==="add"){ doc.push({t:s.text, cls:"add"}); paintDoc(); }
+      else if(s.op==="del"){
+        // mark the matching line deleted, then drop it
+        for(var k=0;k<doc.length;k++){ if(doc[k].t===s.text){ doc[k].cls="del"; break; } }
+        paintDoc();
+        doc=doc.filter(function(l){ return l.t!==s.text; });
+      } else if(s.op==="rep"){ doc.push({t:s.text, cls:"rep"}); paintDoc(); }
+      elGate.textContent=s.gate;
+      elVerdict.textContent="✓ accepted"; elVerdict.className="verdict ok";
+      animateVal(parseFloat(elVal.textContent), s.val);
+    } else {
+      // show the rejected batch as a transient pending block, then roll back
+      paintDoc('<div class="ln rep" style="opacity:.6">+ '+s.text+'</div>');
+      elGate.textContent=s.gate;
+      elVerdict.textContent="✗ rejected — rolled back"; elVerdict.className="verdict no";
+      setTimeout(function(){ paintDoc(); setTimeout(postHeight,20); }, 700);
+    }
+    i++;
+    if(i>=steps.length){ bStep.disabled=true; bStep.textContent="converged ✓"; }
+    setTimeout(postHeight,60);
+  }
+  function animateVal(from,to){
+    // Guarantee the correct endpoint synchronously (rAF can be starved in a
+    // backgrounded tab or a non-compositing preview pane); animate as polish.
+    elVal.textContent=to.toFixed(1);
+    if(typeof requestAnimationFrame!=="function" || from===to) return;
+    var t0=null, dur=520;
+    function fr(ts){
+      if(!t0) t0=ts; var p=Math.min(1,(ts-t0)/dur);
+      elVal.textContent=(from+(to-from)*p).toFixed(1);
+      if(p<1) requestAnimationFrame(fr); else elVal.textContent=to.toFixed(1);
+    }
+    requestAnimationFrame(fr);
+  }
+  function reset(){
+    doc=[]; i=0; bStep.disabled=false; bStep.textContent="Run next step";
+    elLr.textContent="step 0 · budget L=4"; elVal.textContent="41.8";
+    elTrace.textContent="Press “Run next step” to execute the agent on a batch and grade it.";
+    elGrad.textContent="—"; elGate.textContent="—"; elVerdict.textContent=""; elVerdict.className="verdict";
+    paintDoc(); setTimeout(postHeight,40);
+  }
+  bStep.addEventListener("click", step);
+  bReset.addEventListener("click", reset);
+  reset();
+})();
+</script>
+</body>
+</html>
