@@ -12,7 +12,7 @@ import react from '@astrojs/react';
 export default defineConfig({
   // Canonical origin — used for sitemap, canonical links, and absolute OG URLs.
   // Update this one line if you point a custom domain at the site.
-  site: 'https://portfolio-iota-rust-86wl4latsv.vercel.app',
+  site: 'https://akshathtiwari.co.in',
 
   vite: {
     plugins: [tailwindcss()]
