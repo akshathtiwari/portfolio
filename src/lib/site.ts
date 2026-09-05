@@ -18,6 +18,7 @@ export const nav = [
   { label: "Projects", href: "/projects" },
   { label: "Experience", href: "/experience" },
   { label: "Blog", href: "/blog" },
+  { label: "Notes", href: "/notes" },
   { label: "Papers & Talks", href: "/papers" },
   { label: "Volunteering", href: "/volunteer" },
   { label: "Contact", href: "/contact" },

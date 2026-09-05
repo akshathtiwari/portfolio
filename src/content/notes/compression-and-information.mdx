@@ -1,0 +1,23 @@
+---
+title: "Compression & Information Theory — Reinventing Entropy"
+description: "Active-recall study notes from 3Blue1Brown's 'Reinventing Entropy' (Compression is Intelligence, Part 1): self-information (−log₂ p), entropy as the compression floor, prefix codes, Shannon's noiseless coding theorem, and why cross-entropy loss is a compression objective. Mind map + 32 flashcards."
+date: 2026-09-05
+source:
+  title: "3Blue1Brown — Reinventing Entropy (Compression is Intelligence, Part 1)"
+  url: "https://www.youtube.com/watch?v=l6DKRf-fAAM"
+  kind: "video"
+tags: ["information-theory", "entropy", "compression", "cross-entropy", "flashcards"]
+related:
+  - label: "My deep dive: Compression Is Intelligence"
+    href: "/blog/compression-is-intelligence"
+draft: false
+immersive: true
+---
+
+import BlogEmbed from "../../components/BlogEmbed.astro";
+
+<div style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+Active-recall study notes distilled from the 3Blue1Brown video "Reinventing Entropy" (Compression is Intelligence, Part 1). The notes follow the video's arc: the question of whether text compression has a fundamental limit; ASCII's 8 bits per character down to about 4 with frequency coding; a moon-rover warm-up with four instructions at probabilities one-half, one-quarter, one-eighth, one-eighth; three students proposing a fixed two-bit code, a clever variable-length prefix code (0, 10, 110, 111) averaging 1.75 bits, and the theoretical insight that perfect compression looks like random noise; prefix-free codes and the code-space budget where a length-ℓ codeword consumes two-to-the-minus-ℓ; the derivation that a message of probability p must cost negative log base two of p bits, called self-information, read as the number of halvings of possibility space; that message information adds because probabilities multiply and logarithms turn products into sums; Shannon entropy H equals minus the sum of p log p as the average information per symbol and the provable compression floor via the 1948 noiseless coding theorem; how Shannon estimated the entropy of English using n-grams and his wife Betty's letter-guessing game and the 1951 paper Prediction and Entropy of Printed English, reaching about one bit per character with at least one hundred characters of context, by probing an intelligent black-box model of language; and the connection to modern AI, where a language model's cross-entropy next-token loss is equivalent to a compression objective because prediction and compression are two sides of the same coin. The note includes a mind map, a numbers-to-remember table, thirty-two active-recall flashcards grouped by theme with self-rating and a review mode, Feynman explain-it-back prompts, and gotchas, and links to the source video and to the author's companion deep-dive blog on compression as intelligence.
+</div>
+
+<BlogEmbed src="/notes-embeds/compression-and-information.html" title="Study note: Compression & Information Theory — mind map, notes, and 32 active-recall flashcards" />

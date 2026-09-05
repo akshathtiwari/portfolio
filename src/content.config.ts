@@ -34,6 +34,27 @@ const blog = defineCollection({
   }),
 });
 
+const notes = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/notes' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    date: z.coerce.date(),
+    source: z.object({
+      title: z.string(),
+      url: z.string().optional(),
+      kind: z.string().default('article'),
+    }),
+    tags: z.array(z.string()).default([]),
+    related: z
+      .array(z.object({ label: z.string(), href: z.string() }))
+      .default([]),
+    draft: z.boolean().default(false),
+    // Notes render full-bleed as an interactive embed (mind map + flashcards).
+    immersive: z.boolean().default(true),
+  }),
+});
+
 const papers = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/papers' }),
   schema: z.object({
@@ -47,4 +68,4 @@ const papers = defineCollection({
   }),
 });
 
-export const collections = { projects, blog, papers };
+export const collections = { projects, blog, notes, papers };

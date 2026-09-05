@@ -15,10 +15,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const dir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../public/blog-embeds"
-);
+// Process every self-contained embed directory: blog deep-dives and study notes.
+const root = path.dirname(fileURLToPath(import.meta.url));
+const dirs = ["../public/blog-embeds", "../public/notes-embeds"]
+  .map((d) => path.resolve(root, d))
+  .filter((d) => fs.existsSync(d));
 
 const MARKER = "tdb-theme-light";
 
@@ -75,10 +76,12 @@ const LIGHT_STYLE = `<style id="${MARKER}">
 }
 </style>`;
 
-const files = fs
-  .readdirSync(dir)
-  .filter((f) => f.endsWith(".html"))
-  .map((f) => path.join(dir, f));
+const files = dirs.flatMap((dir) =>
+  fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".html"))
+    .map((f) => path.join(dir, f))
+);
 
 let changed = 0;
 

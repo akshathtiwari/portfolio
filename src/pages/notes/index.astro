@@ -1,0 +1,50 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+
+const notes = (await getCollection("notes", ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const formatDate = (d: Date) =>
+  d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<Layout title="Notes — Akshath Tiwari" description="Active-recall study notes: distilled concepts, mind maps, and self-testing flashcards on the things I'm learning.">
+  <section class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+    <h1 class="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Notes</h1>
+    <p class="mt-3 text-neutral-600 dark:text-neutral-400">
+      A growing set of study notes on things I read and watch — each one distilled into a mind map,
+      the key ideas and formulas, and a bank of active-recall flashcards to test myself against.
+      Every note traces back to its source.
+    </p>
+
+    {notes.length === 0 && (
+      <p class="mt-12 text-sm text-neutral-500">No notes yet — check back soon.</p>
+    )}
+
+    <div class="mt-10 space-y-8">
+      {notes.map((note) => (
+        <a href={`/notes/${note.id}`} class="group block">
+          <div class="flex items-center gap-3">
+            <p class="font-mono text-xs text-neutral-500">{formatDate(note.data.date)}</p>
+            <span class="rounded-full border border-neutral-200 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-neutral-500 dark:border-white/10">
+              {note.data.source.kind}
+            </span>
+          </div>
+          <h2 class="mt-1 text-lg font-semibold text-neutral-900 group-hover:text-emerald-600 dark:text-neutral-100 dark:group-hover:text-emerald-300">
+            {note.data.title}
+          </h2>
+          <p class="mt-1.5 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">{note.data.description}</p>
+          <div class="mt-2 flex flex-wrap gap-1.5">
+            {note.data.tags.map((tag) => (
+              <span class="rounded-full border border-neutral-200 px-2.5 py-0.5 text-[11px] text-neutral-500 dark:border-white/10">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+</Layout>
